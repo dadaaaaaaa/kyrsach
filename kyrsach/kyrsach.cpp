@@ -29,49 +29,41 @@ int num_kraev = 0;
 
 double func(double x, double y, int i)
 {
-	if (!i) return (-exp(x + y));
-	else return (-2 * x + 12 + 8 * y);
-}
-
-double func_kraev1(double* x, int k)
-{
-	switch (k)
-	{
-	case 0: return exp(x[0]);
-	case 1: return x[1];
-	}
+	if (i == 0)
+		return -20;
 	return 0;
 }
-
+double func_kraev1(double* x, int k)
+{
+	switch (k) {
+	case 0: return x[1] * x[1];
+	default: return 0;
+	}
+}
 double func_kraev2(double* x, int k)
 {
 	switch (k)
 	{
-	case 0: return (2 * exp(x[0] + x[1]));
-	case 1: return (-2 * exp(x[0] + x[1]));
-	case 2: return (2.);
+	case 0: return 20;
+	case 1: return 0;
+		//case 2: return (2.);
+	default: return 0;
 	}
-	return 0;
 }
-
 double func_kraev3(double* x, int k)
 {
-	switch (k)
-	{
-	case 0: return (exp(x[0] + 1) - 2 * exp(x[0] + x[1]));
-	case 1: return ((-1. + 10 * x[1]) / 5.);
-	}
+	if (k == 0)
+		return (20 * x[1] - 27);
 	return 0;
 }
-
 double resh(double x, double y, int k)
 {
 	switch (k)
 	{
-	case 0: return (exp(x + y));
-	case 1: return (-x / 2. + 3 + 2 * y);
+	case 0: return (y * y);
+	case 1: return 20.0 * y - 19.0;
+	default: return 0;
 	}
-	return 0;
 }
 
 int input()
@@ -277,58 +269,130 @@ double mes_G(double* x, double* y) {
 	return sqrt((y[0] - x[0]) * (y[0] - x[0]) + (y[1] - x[1]) * (y[1] - x[1]));
 }
 
-void M_matrix(double* p1, double* p2, double* p3, double gamma, double** M_matr, double* local_F, int num_of_area) {
+void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local_F, int num_of_area) {
 	// Вычисляем детерминант для площади треугольника
 	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
+	double mnoz2 = (det / 24) * gamma;
+	double a=1/60, b=4/25, c=-1/360, d=2/25;
+		M_matr[0][0] = a * mnoz2;
+		M_matr[0][1] = c * mnoz2;
+		M_matr[0][2] = c * mnoz2;
+		M_matr[0][3] = 0;
+		M_matr[0][4] = 0;
+		M_matr[0][5] = 0;
 
-	// Определяем площадь элемента
-	double area = fabs(det) / 2;
-	double mnoz = area / 60; // Определение множителя для треугольников с квадратичными базисными функциями
-	double mnoz2 = mnoz * gamma;
+		M_matr[1][0] = c * mnoz2;
+		M_matr[1][1] = a * mnoz2;
+		M_matr[1][2] = c * mnoz2;
+		M_matr[1][3] = 0;
+		M_matr[1][4] = 0;
+		M_matr[1][5] = 0;
 
-	// Значения функции в узлах (три угловых и три средних узла)
-	double f[6];
-	f[0] = mnoz * func(p1[0], p1[1], num_of_area); // Узел 1
-	f[1] = mnoz * func(p2[0], p2[1], num_of_area); // Узел 2
-	f[2] = mnoz * func(p3[0], p3[1], num_of_area); // Узел 3
-	f[3] = mnoz * func((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2, num_of_area); // Узел 4
-	f[4] = mnoz * func((p2[0] + p3[0]) / 2, (p2[1] + p3[1]) / 2, num_of_area); // Узел 5
-	f[5] = mnoz * func((p3[0] + p1[0]) / 2, (p3[1] + p1[1]) / 2, num_of_area); // Узел 6
+		M_matr[2][0] = c * mnoz2;
+		M_matr[2][1] = c * mnoz2;
+		M_matr[2][2] = a * mnoz2;
+		M_matr[2][3] = 0;
+		M_matr[2][4] = 0;
+		M_matr[2][5] = 0;
 
-	// Формируем вектор нагрузки
-	local_F[0] = (2 * f[0] + f[1] + f[2] + f[3] + f[5]) / 3;
-	local_F[1] = (f[0] + 2 * f[1] + f[2] + f[3] + f[4]) / 3;
-	local_F[2] = (f[0] + f[1] + 2 * f[2] + f[4] + f[5]) / 3;
+		M_matr[3][0] = 0;
+		M_matr[3][1] = 0;
+		M_matr[3][2] = 0;
+		M_matr[3][3] =b * mnoz2;
+		M_matr[3][4] = d * mnoz2;
+		M_matr[3][5] = d * mnoz2;
 
-	// Заполняем матрицу масс
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			M_matr[i][j] = (i == j) ? mnoz2 : (mnoz2 / 4);
-		}
-	}
+		M_matr[4][0] = 0;
+		M_matr[4][1] = 0;
+		M_matr[4][2] = 0;
+		M_matr[4][3] = d * mnoz2;
+		M_matr[4][4] = b * mnoz2;
+		M_matr[4][5] = d * mnoz2;
+
+		M_matr[5][0] = 0;
+		M_matr[5][1] = 0;
+		M_matr[5][2] = 0;
+		M_matr[5][3] = d * mnoz2;
+		M_matr[5][4] = d * mnoz2;
+		M_matr[5][5] = b * mnoz2;
 }
 
-void G_matrix(double* p1, double* p2, double* p3, double** G_matr, int k) {
+void G_matrix(double* p1, double* p2, double* p3, double** G_matr, double gamma, int k) {
+	double lamda[6] = { 0,1,2,3,4,5 };
 	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
 	double mid12[2] = { (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 };
 	double mid23[2] = { (p2[0] + p3[0]) / 2, (p2[1] + p3[1]) / 2 };
 	double mid31[2] = { (p3[0] + p1[0]) / 2, (p3[1] + p1[1]) / 2 };
+	double a11, a21, a12, a22,a31,a32,l1,l2,l3,fx1,fx2,fx3,fx4,fx5,fx6,fy1,fy2,fy3,fy4,fy5,fy6,f1,f2,f3,f4,f5,f6;
+	a11 = (p2[1] - p3[1]) / det;
+	a12 = (p3[0] - p2[0]) / det;
+	a21 = (p3[1] - p1[1]) / det;
+	a22 = (p1[0] - p3[0]) / det;
+	a31 = (p1[1] -p2[1])/det;
+	a32 = (p2[0]- p1[0])/det;
+	l1 = ;
+	l2 = ;
+	l3 = ;
+	fx1 =4*a11*l1-a11 ;
+	fx2 = 4*a12*l2-a21;
+	fx3 =4*a31*l3-a31 ;
+	fx4 = 4 * (a11 * l2 + a21 * l1);
+	fx5 = 4*(a21*l3+a31*l2);
+	fx6 = 4*(a11*l3+a31*l1);
+	fy1 = 4*a12*l1-a12 ;
+	fy2 = 4 * a22 * l2 - a22;
+	fy3 = 4*a32*l3-a32;
+	fy4 = 4*(a12*l2+a22*l1);
+	fy5 = 4 * (a22 * l3 + a32 * l2);
+	fy6 = 4 * (a11 * l3 + a31 * l1);
+	f1 = l1(2*l1-1);
+	f2 = l2(2*l2-1);
+	f3 = l3(2*l3-1);
+	f4 = 4 * l1*l2;
+	f5 = 4 * l2*l3;
+	f6 = 4 * l1*l3;
+	G_matr[0][0] = 
+	G_matr[0][1] = 
+	G_matr[0][2] = 
+		G_matr[0][3] =
+		G_matr[0][4] =
+		G_matr[0][5] =
 
-	double ck = lambda(k, p1) * fabs(det) / 2; // Среднее значение коэффициента
-	double invDet = 1.0 / (det * det);
+	G_matr[1][0] = 
+	G_matr[1][1] = 
+	G_matr[1][2] = 
+		G_matr[1][3] =
+		G_matr[1][4] =
+		G_matr[1][5] =
 
-	// Формируем матрицу G
-	G_matr[0][0] = ck * ((p2[1] - p3[1]) * (p2[1] - p3[1]) + (p3[0] - p2[0]) * (p3[0] - p2[0])) * invDet;
-	G_matr[0][1] = ck * ((p2[1] - p3[1]) * (mid23[1] - p1[1]) + (p3[0] - p2[0]) * (p1[0] - mid23[0])) * invDet;
-	G_matr[0][2] = ck * ((p2[1] - p3[1]) * (p1[1] - mid12[1]) + (p3[0] - p2[0]) * (mid12[0] - p1[0])) * invDet;
+	G_matr[2][0] = 
+	G_matr[2][1] = 
+	G_matr[2][2] = 
+		G_matr[2][3] =
+		G_matr[2][4] =
+		G_matr[2][5] =
 
-	G_matr[1][0] = ck * ((mid23[1] - p1[1]) * (p2[1] - p3[1]) + (mid23[0] - p1[0]) * (p3[0] - p2[0])) * invDet;
-	G_matr[1][1] = ck * ((mid23[1] - p1[1]) * (mid23[1] - p1[1]) + (mid23[0] - p1[0]) * (mid23[0] - p1[0])) * invDet;
-	G_matr[1][2] = ck * ((mid23[1] - p1[1]) * (p1[1] - mid12[1]) + (mid23[0] - p1[0]) * (mid12[0] - p1[0])) * invDet;
+		G_matr[3][0] =
+		G_matr[3][1] =
+		G_matr[3][2] =
+		G_matr[3][3] =
+		G_matr[3][4] =
+		G_matr[3][5] =
 
-	G_matr[2][0] = ck * ((p1[1] - mid12[1]) * (p1[1] - mid12[1]) + (p1[0] - mid12[0]) * (mid12[0] - p2[0])) * invDet;
-	G_matr[2][1] = ck * ((mid12[1] - p2[1]) * (mid12[1] - p2[1]) + (mid12[0] - p2[0]) * (p2[0] - p3[0])) * invDet;
-	G_matr[2][2] = ck * ((p2[1] - p3[1]) * (p2[1] - p3[1]) + (p2[0] - p3[0]) * (p2[0] - p3[0])) * invDet;
+		G_matr[4][0] =
+		G_matr[4][1] =
+		G_matr[4][2] =
+		G_matr[4][3] =
+		G_matr[4][4] =
+		G_matr[4][5] =
+
+		G_matr[5][0] =
+		G_matr[5][1] =
+		G_matr[5][2] =
+		G_matr[5][3] =
+		G_matr[5][4] =
+		G_matr[5][5] =
+
 }
 
 void local_matrix(int num_of_finit_element, double** local_matr, double* local_F) {
@@ -346,8 +410,8 @@ void local_matrix(int num_of_finit_element, double** local_matr, double* local_F
 	}
 
 	// Заполнение матриц
-	M_matrix(point[k], point[l], point[m], gamma_betta[finit_in_area[num_of_finit_element]][0], M_matr, local_F, finit_in_area[num_of_finit_element]);
-	G_matrix(point[k], point[l], point[m], G_matr, finit_in_area[num_of_finit_element]);
+	M_matrix(point[k], point[l], point[m],  M_matr, local_F, finit_in_area[num_of_finit_element]);
+	G_matrix(point[k], point[l], point[m], G_matr, gamma_betta[finit_in_area[num_of_finit_element]][0], finit_in_area[num_of_finit_element]);
 
 	// Объединяем результаты
 	for (int i = 0; i < 6; i++) {
