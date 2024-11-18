@@ -1,810 +1,743 @@
-﻿#include <iostream>
+﻿#include <vector>
+#include <string>
 #include <fstream>
 #include <iomanip>
-#include <math.h>
+#include <set>
+#include <algorithm>
+#include <cmath>
+#include <iostream>
 
-using namespace std;
+typedef double real;
+typedef std::vector<real> vr;
+typedef std::vector<vr> vvr;
+typedef std::vector<int> vi;
+typedef std::vector<vi> vvi;
 
-double** point = NULL;
-double** gamma_betta = NULL;
-int** finit = NULL;
-int* finit_in_area = NULL;
-int** kraev = NULL;
-int* point_in_area = NULL;
+struct Element {
+    int region;
+    vi _nodes;
+};
+typedef std::vector<Element> va;
 
-int* ig = NULL;
-int* jg = NULL;
-double* di = NULL;
-double* ggl = NULL;
-double* ggu = NULL;
-double* F = NULL;
-double* x = NULL;
+class Problem {
+public:
+    // Пример методов, которые могут быть в классе Problem
+    real lambda(int region, real x, real y) const {
+        if (region == 1) return (10);
+        else return (1);
+    } // лямда в решениии(линейная)
+    real gamma(int region) const {
+        return 1;
+    } // для решения(сохраняеться)
+    real rightPart(int region, real x, real y) const {
+        if (region) return (-20);
+        else return (0);
+    } // функция ф(от теста)
+    real exactSolution(int region, real x, real y) const {
+        switch (region)
+        {
+        case 0: return (y * y);
+        case 1: return 20 * y - 19;
+        }
+        return 0;
+    } //точное решении
+    real ug(int region, real x, real y) const {
+        switch (region)
+        {
+        case 0: return y * y;
+        case 1: return 20 * y - 19;
+        }
+        return 0;
+    } // первое к улс
+    real theta(int region, real x, real y) const {
+        switch (region)
+        {
+        case 0: return 20;
+        case 1: return 0;
+        }
+        return 0;
+    } // 2 ур услво├ λ ∂u/∂n┤|_(S_2 )=θ
+    real beta(int region) const { return 2; } // для 3 к усл
+    real ub(int region, real x, real y) const {
+        switch (region)
+        {
+        case 0: return (20 * y - 27);
+        case 1: return 0;
+        }
+        return 0;
+    }//3 кр услов ├ λ ∂u/∂n┤|_(S_3 )+β(├ u┤|_(S_3 )-u_β )=0
+};
 
-double* z, * r, * p, * t, * r1, * l, * l1, * f;
+class Solver {
+public:
+    Solver();
+    void loadElements(const std::string& inputPath = "Elements.txt");
+    void loadPoints(const std::string& inputPath = "Points.txt");
+    void loadBoundary(const std::string& inputPath = "Boundary.txt");
+    void solve();
+    void writeAnswer(const std::string& outputPath = "output.txt") const;
 
-int num_points = 0;//количество точек
-int num_finit_elements = 0;//количество конечных элементов
-int num_areas = 0;
-int num_kraev = 0;
+private:
+    void buildPortrait();
+    void buildGlobalMatrix();
+    void buildLocal(int i);
+    void addLocal(int i);
+    void addLocalBoundary(int b);
+    void buildLocalStiffnessMatrix(int numberElement);
+    void buildLocalMassMatrix(int numberElement);
+    void buildLocalRightPart(int numberElement);
+    void considerFirstBoundary();
+    void considerSecondBoundary();
+    void considerThirdBoundary();
+    void losInitialize();
+    void solveLos();
+    void lusqDecomposition();
+    void solveL(vr& x, const vr& b);
+    void solveU(vr& x, const vr& b);
+    void multy(const vr& x, vr& result);
+    real dotProduct(const vr& x1, const vr& x2) const;
+    real sum(int i, int j);
 
-double func(double x, double y, int i)
-{
-	if (!i) return (-exp(x + y));
-	else return (-2 * x + 12 + 8 * y);
+    Problem _problem;
+    vr _xNode;
+    vr _yNode;
+    va _elements;
+    va _mas;
+    vvi _ltgm;
+    vvi _boundary;
+    vvi _sBoundary;
+    vvi _ltgb;
+    vvr _localMatrix;
+    vvr _localMassMatrix;
+    vvr _localStiffnessMatrix;
+    vr _localRightPart;
+    vr _localRightPartBoundary;
+    vvr _localMatrixBoundary;
+    int num_points = 0; // количество точек
+    int countElements = 0; // количество конечных элементов
+    int num_elements = 0;
+    int num_kraev = 0;
+
+    // LOS's data
+    int _N;
+    vr _ddi;
+    vr _aal;
+    vr _aau;
+    vr _di;
+    vr _al;
+    vr _au;
+    vr _ia;
+    vr _ja;
+    vr _x;
+    vr _f;
+    vr _r;
+    vr _r0;
+    vr _z;
+    vr _p;
+    vr _help;
+    vr _help2;
+    vr _help3;
+    vr _M;
+    int _maxIter;
+    real _eps;
+};
+
+const int LOCAL_MATRIX_SIZE = 6;
+
+Solver::Solver() :
+    _localMatrix(LOCAL_MATRIX_SIZE, vr(LOCAL_MATRIX_SIZE)),
+    _localMassMatrix(_localMatrix),
+    _localRightPart(LOCAL_MATRIX_SIZE),
+    _localRightPartBoundary(3),
+    _localMatrixBoundary(3, vr(3)),
+    _eps(1e-13),
+    _maxIter(10000) {}
+
+void Solver::loadElements(const std::string& inputPath) {
+    std::ifstream input(inputPath.c_str());
+    input >> countElements;
+    _elements.resize(countElements);
+    _mas.resize(countElements);
+    _ltgm.resize(countElements);
+    for (int i = 0; i < countElements; ++i) {
+        _elements[i]._nodes.resize(6);
+        _mas[i]._nodes.resize(6);
+        _ltgm[i].resize(6);
+        input >> _elements[i].region;
+        for (int j = 0; j < LOCAL_MATRIX_SIZE; j++) {
+            input >> _elements[i]._nodes[j];
+            std::cout << _elements[i]._nodes[j];
+        }
+        _mas[i] = _elements[i];
+        std::sort(_mas[i]._nodes.begin(), _mas[i]._nodes.begin() + 6);
+        for (int j = 0; j < LOCAL_MATRIX_SIZE; j++) {
+            int s;
+            for (s = 0; s < LOCAL_MATRIX_SIZE; s++) {
+                if (_elements[i]._nodes[s] == _mas[i]._nodes[j]) {
+                    _ltgm[i][j] = s;
+                    break;
+                }
+            }
+        }
+    }
 }
 
-double func_kraev1(double* x, int k)
-{
-	switch (k)
-	{
-	case 0: return exp(x[0]);
-	case 1: return x[1];
-	}
-	return 0;
+void Solver::loadPoints(const std::string& inputPath) {
+    std::ifstream input(inputPath.c_str());
+    input >> num_points;
+    _N = num_points;
+    _xNode.resize(num_points);
+    _yNode.resize(num_points);
+    for (int i = 0; i < num_points; i++) {
+        input >> _xNode[i];
+        std::cout << _xNode[i];
+        input >> _yNode[i];
+    }
 }
 
-double func_kraev2(double* x, int k)
-{
-	switch (k)
-	{
-	case 0: return (2 * exp(x[0] + x[1]));
-	case 1: return (-2 * exp(x[0] + x[1]));
-	case 2: return (2.);
-	}
-	return 0;
+void Solver::loadBoundary(const std::string& inputPath) {
+    std::ifstream input(inputPath.c_str());
+    int n;
+    input >> n;
+    _boundary.resize(n, vi(5));
+    _sBoundary.resize(n, vi(5));
+    _ltgb.resize(n, vi(3));
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < 5; j++) {
+            input >> _boundary[i][j];
+            std::cout << _boundary[i][j];
+        }
+        _sBoundary[i] = _boundary[i];
+        std::sort(_sBoundary[i].begin() + 2, _sBoundary[i].begin() + 5);
+        for (int j = 2; j < 5; j++) {
+            int s;
+            for (s = 2; s < 5; s++) {
+                if (_boundary[i][s] == _sBoundary[i][j]) {
+                    _ltgb[i][j - 2] = s - 2;
+                    break;
+                }
+            }
+        }
+    }
 }
 
-double func_kraev3(double* x, int k)
-{
-	switch (k)
-	{
-	case 0: return (exp(x[0] + 1) - 2 * exp(x[0] + x[1]));
-	case 1: return ((-1. + 10 * x[1]) / 5.);
-	}
-	return 0;
+void Solver::solve() {
+    loadElements();
+    loadPoints();
+    loadBoundary();
+    buildPortrait();
+    buildGlobalMatrix();
+    solveLos();
+    writeAnswer();
 }
 
-double resh(double x, double y, int k)
-{
-	switch (k)
-	{
-	case 0: return (exp(x + y));
-	case 1: return (-x / 2. + 3 + 2 * y);
-	}
-	return 0;
+void Solver::writeAnswer(const std::string& outputPath) const {
+    const int FIELD_SIZE = 25;
+    std::ofstream output(outputPath.c_str());
+    output << "x" << std::setw(FIELD_SIZE)
+        << "y" << std::setw(FIELD_SIZE + 1)
+        << "u*" << std::setw(FIELD_SIZE - 1)
+        << "u" << std::setw(FIELD_SIZE + 7)
+        << "|u* - u|" << std::endl;
+    output.precision(15);
+    output << std::scientific;
+    int i = 0;
+    real totalDelta = 0;
+    real norm = 0;
+    for (int j = 0; j < _N; j++) {
+        int region = 0;
+        real u = _problem.exactSolution(region, _xNode[j], _yNode[j]);
+        real y = _x[i];
+        real delta = fabs(u - y);
+        totalDelta += delta * delta;
+        norm += u * u;
+        output << _xNode[j] << std::setw(FIELD_SIZE)
+            << _yNode[j] << std::setw(FIELD_SIZE)
+            << u << std::setw(FIELD_SIZE)
+            << y << std::setw(FIELD_SIZE)
+            << delta << std::endl;
+        ++i;
+    }
+    output << "Total error: " << sqrt(totalDelta / norm);
 }
 
-int input()
-{
-	ifstream _file("coords.txt");
-
-	if (!_file.is_open())
-	{
-		_file.close();
-		return 1;
-	}
-
-	_file >> num_points;
-
-	if (num_points <= 0)
-	{
-		_file.close();
-		return 2;
-	}
-
-	point = new double* [num_points];
-	for (int i = 0; i < num_points; i++) {
-		point[i] = new double[2];
-		for (int j = 0; j < 2; j++)
-			_file >> point[i][j];
-	}
-	_file.close();
-
-
-	ifstream _file1("finit_elements.txt");
-	if (!_file1.is_open()) {
-		_file1.close();
-		return 1;
-	}
-	_file1 >> num_finit_elements;
-	if (num_finit_elements <= 0) {
-		_file.close();
-		return 2;
-	}
-	finit = new int* [num_finit_elements];
-	for (int i = 0; i < num_finit_elements; i++) {
-		finit[i] = new int[3];
-		for (int j = 0; j < 3; j++)
-			_file1 >> finit[i][j];
-	}
-	_file1.close();
-
-	ifstream _file2("areas.txt");
-	if (!_file2.is_open()) {
-		_file2.close();
-		return 1;
-	}
-	_file2 >> num_areas;
-	if (num_areas <= 0) {
-		_file.close();
-		return 2;
-	}
-	gamma_betta = new double* [num_areas];
-	finit_in_area = new int[num_finit_elements];
-	for (int i = 0; i < num_areas; i++) {
-		gamma_betta[i] = new double[2];
-		for (int j = 0; j < 2; j++)
-			_file2 >> gamma_betta[i][j];
-	}
-	for (int i = 0; i < num_finit_elements; i++)
-		_file2 >> finit_in_area[i];
-	_file2.close();
-
-	ifstream _file3("board.txt");
-	if (!_file3.is_open()) {
-		_file3.close();
-		return 1;
-	}
-	_file3 >> num_kraev;
-	kraev = new int* [num_kraev];
-	for (int i = 0; i < num_kraev; i++) {
-		kraev[i] = new int[4];
-		for (int j = 0; j < 5; j++)
-			_file3 >> kraev[i][j];
-	}
-	_file3.close();
-
-	ifstream _file4("point_in_area.txt");
-	if (!_file4.is_open()) {
-		_file4.close();
-		return 1;
-	}
-	point_in_area = new int[num_points];
-	for (int i = 0; i < num_points; i++)
-		_file4 >> point_in_area[i];
-	_file4.close();
-	return 0;
-}
-void sort(int* mas, int k)
-{
-	int l = 0;
-	for (int i = k - 1; i >= 0; i--)
-		for (int j = 0; j <= i; j++)
-			if (mas[j] > mas[j + 1]) {
-				l = mas[j];
-				mas[j] = mas[j + 1];
-				mas[j + 1] = l;
-			}
+void Solver::buildPortrait() {
+    int position = 0; // позиция в массиве jg, в которую надо добавлять
+    std::vector<std::set<int>> list(_N);
+    // составление "массива", содержащего номер точки и смежные с ней 
+    for (int i = 0; i < countElements; i++) {
+        for (int j = 5; j >= 0; j--) {
+            for (int m = j - 1; m >= 0; m--) {
+                list[_mas[i]._nodes[j]].insert(_mas[i]._nodes[m]);
+            }
+        }
+    }
+    // составление массива ia
+    _ia.resize(_N + 1, 0);
+    for (int i = 1; i <= _N; ++i)
+        _ia[i] = _ia[i - 1] + list[i - 1].size();
+    _ia[0] = 0;
+    _ja.resize(_ia[_N]);
+    _al.resize(_ia[_N]);
+    _au.resize(_ia[_N]);
+    _aal.resize(_ia[_N]);
+    _aau.resize(_ia[_N]);
+    auto it = _ja.begin();
+    for (int i = 0; i < _N; ++i) {
+        std::copy(list[i].begin(), list[i].end(), it);
+        it += list[i].size();
+        list[i].clear();
+    }
+    _di.resize(_N);
+    _ddi.resize(_N);
+    _f.resize(_N);
 }
 
-void portret()
-{
-	int i = 0;
-	int j = 0;
-	int k = 0;
-	int kk = 0;
-	int key = 0;
-	int position = 0;//позиция в массиве jg, в которую надо добавлять
-	int* mas = new int[num_points];
-	struct List {
-		int num;
-		List* next;
-	};
-
-	List* list = new List[num_points];
-	List* p = NULL;
-
-	ig = new int[num_points + 1];
-
-	for (i = 0; i < num_points; i++)
-		list[i].next = NULL;
-
-	//составление "массива", содержащего номер точки и смежные с ней 
-	for (i = 0; i < num_finit_elements; i++) {
-		for (j = 0; j < 3; j++) {
-			key = 0;
-			k = finit[i][(j == 2)];//0 0 1
-			kk = finit[i][((j != 0) + 1)];// 1 2 2
-			if (k < kk) {
-				k += kk;
-				kk = k - kk;
-				k -= kk;
-			}
-			p = &list[k];
-			while (p->next) {
-				if (p->next->num == kk) {
-					key = 1;
-					break;
-				}
-				p = p->next;
-			}
-			if (!key) {
-				p->next = new List;
-				p->next->num = kk;
-				p->next->next = NULL;
-			}
-		}
-	}
-
-
-
-
-	//составление массива ig
-	ig[0] = 0;
-	for (i = 0; i < num_points; i++) {
-		k = 0;
-		p = &list[i];
-		while (p = p->next)
-			k++;
-		ig[i + 1] = ig[i] + k;
-	}
-
-	jg = new int[ig[i] - 1];
-	//составление массива jg
-	for (i = 0; i < num_points; i++) {
-		k = 0;
-		key = 0;
-		p = &list[i];
-		while (p = p->next) {
-			mas[k] = p->num;
-			k++;
-			key = 1;
-		}
-		if (key) {
-			sort(mas, --k);//сортировка
-			int ii = 0;//добавляет в jg
-			int jj = 0;
-			for (ii = position, jj = 0; ii <= k + position; ii++, jj++)
-				jg[ii] = mas[jj];
-
-			position += k + 1;
-		}
-	}
+void Solver::buildGlobalMatrix() {
+    for (int i = 0; i < countElements; i++) {
+        buildLocal(i);
+        addLocal(i);
+    }
+    considerSecondBoundary();
+    considerThirdBoundary();
+    _au = _al;
+    considerFirstBoundary();
 }
 
-void tochnoe()
-{
-	for (int i = 0; i < num_points; i++)
-		x[i] = resh(point[i][0], point[i][1], point_in_area[i]);
+void Solver::buildLocal(int numberElement) {
+
+    buildLocalStiffnessMatrix(numberElement);
+    buildLocalMassMatrix(numberElement);
+    int i, j;
+    for (i = 0; i < LOCAL_MATRIX_SIZE; ++i)
+        for (j = 0; j < LOCAL_MATRIX_SIZE; ++j)
+            _localMatrix[i][j] += _localMassMatrix[i][j];
+    buildLocalRightPart(numberElement);
 }
 
-double lambda(int k, double* p) {
-	// Пример задания коэффициента диффузии через линейные функции
-	return (k == 0) ? 10.0 : 1.0; // Можно настроить на основании координат
+void Solver::addLocal(int numberElement) {
+    int index[LOCAL_MATRIX_SIZE];
+    vi ll(6);
+    for (int k = 0; k < LOCAL_MATRIX_SIZE; k++) {
+        index[k] = _mas[numberElement]._nodes[k];
+        ll[k] = _ltgm[numberElement][k];
+    }
+    int i;
+    for (i = 0; i < LOCAL_MATRIX_SIZE; ++i) {
+        _di[index[i]] += _localMatrix[ll[i]][ll[i]]; // diagonal of global matrix
+        _f[index[i]] += _localRightPart[ll[i]];// right part
+    }
+    // another part of global matrix
+    int j;
+    for (i = 0; i < LOCAL_MATRIX_SIZE; ++i) {
+        int iBeg = _ia[index[i]];
+        for (j = 0; j < i; ++j, ++iBeg) {
+            int iEnd = _ia[index[i] + 1];
+            while (_ja[iBeg] != index[j]) {
+                int ind = (iBeg + iEnd) / 2;
+                if (_ja[ind] <= index[j])
+                    iBeg = ind;
+                else
+                    iEnd = ind;
+            }
+            _al[iBeg] += _localMatrix[ll[i]][ll[j]];
+            _au[iBeg] += _localMatrix[ll[j]][ll[i]];
+        }
+    }
 }
 
-double mes_G(double* x, double* y) {
-	return sqrt((y[0] - x[0]) * (y[0] - x[0]) + (y[1] - x[1]) * (y[1] - x[1]));
+void Solver::addLocalBoundary(int b) {
+    vi lb(3), index(3);
+    lb = _ltgb[b];
+    int i;
+    for (i = 0; i < 3; ++i) {
+        index[i] = _sBoundary[b][i + 2];
+        _di[index[i]] += _localMatrixBoundary[lb[i]][lb[i]];
+    }
+    int j;
+    for (i = 0; i < 3; ++i) {
+        int iBeg = _ia[index[i]];
+        for (j = 0; j < i; ++j, ++iBeg) {
+            int iEnd = _ia[index[i] + 1];
+            while (_ja[iBeg] != index[j]) {
+                int ind = (iBeg + iEnd) / 2;
+                if (_ja[ind] <= index[j])
+                    iBeg = ind;
+                else
+                    iEnd = ind;
+            }
+            _al[iBeg] += _localMatrixBoundary[lb[i]][lb[j]];
+            _au[iBeg] += _localMatrixBoundary[lb[j]][lb[i]];
+        }
+    }
 }
 
-void M_matrix(double* p1, double* p2, double* p3, double gamma, double** M_matr, double* local_F, int num_of_area) {
-	// Вычисляем детерминант для площади треугольника
-	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-
-	// Определяем площадь элемента
-	double area = fabs(det) / 2;
-	double mnoz = area / 60; // Определение множителя для треугольников с квадратичными базисными функциями
-	double mnoz2 = mnoz * gamma;
-
-	// Значения функции в узлах (три угловых и три средних узла)
-	double f[6];
-	f[0] = mnoz * func(p1[0], p1[1], num_of_area); // Узел 1
-	f[1] = mnoz * func(p2[0], p2[1], num_of_area); // Узел 2
-	f[2] = mnoz * func(p3[0], p3[1], num_of_area); // Узел 3
-	f[3] = mnoz * func((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2, num_of_area); // Узел 4
-	f[4] = mnoz * func((p2[0] + p3[0]) / 2, (p2[1] + p3[1]) / 2, num_of_area); // Узел 5
-	f[5] = mnoz * func((p3[0] + p1[0]) / 2, (p3[1] + p1[1]) / 2, num_of_area); // Узел 6
-
-	// Формируем вектор нагрузки
-	local_F[0] = (2 * f[0] + f[1] + f[2] + f[3] + f[5]) / 3;
-	local_F[1] = (f[0] + 2 * f[1] + f[2] + f[3] + f[4]) / 3;
-	local_F[2] = (f[0] + f[1] + 2 * f[2] + f[4] + f[5]) / 3;
-
-	// Заполняем матрицу масс
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			M_matr[i][j] = (i == j) ? mnoz2 : (mnoz2 / 4);
-		}
-	}
+void Solver::buildLocalStiffnessMatrix(int numberElement) {
+    const int reg = _elements[numberElement].region;
+    int n1 = _elements[numberElement]._nodes[0];
+    int n2 = _elements[numberElement]._nodes[1];
+    int n3 = _elements[numberElement]._nodes[2];
+    const real det = fabs((_xNode[n2] - _xNode[n1]) * (_yNode[n3] - _yNode[n1]) - (_xNode[n3] - _xNode[n1]) * (_yNode[n2] - _yNode[n1]));
+    const real h1 = _problem.lambda(reg, _xNode[n1], _yNode[n1]);
+    const real h2 = _problem.lambda(reg, _xNode[n2], _yNode[n2]);
+    const real h3 = _problem.lambda(reg, _xNode[n3], _yNode[n3]);
+    const real a11 = _yNode[n2] - _yNode[n3];
+    const real a12 = _xNode[n3] - _xNode[n2];
+    const real a21 = _yNode[n3] - _yNode[n1];
+    const real a22 = _xNode[n1] - _xNode[n3];
+    const real a31 = _yNode[n1] - _yNode[n2];
+    const real a32 = _xNode[n2] - _xNode[n1];
+    const real tt = 1.0 / 30.0 / det;
+    _localMatrix[0][0] = tt * (a11 * a11 + a12 * a12) * (h1 * (9) + h2 * (3) + h3 * (3));
+    _localMatrix[1][0] = tt * (a21 * a11 + a12 * a22) * (h1 * (-2) + h2 * (-2) + h3 * (-1));
+    _localMatrix[1][1] = tt * (a21 * a21 + a22 * a22) * (h1 * (3) + h2 * (9) + h3 * (3));
+    _localMatrix[2][0] = tt * (a31 * a11 + a12 * a32) * (h1 * (-2) + h2 * (-1) + h3 * (-2));
+    _localMatrix[2][1] = tt * (a31 * a21 + a22 * a32) * (h1 * (-1) + h2 * (-2) + h3 * (-2));
+    _localMatrix[2][2] = tt * (a31 * a31 + a32 * a32) * (h1 * (3) + h2 * (3) + h3 * (9));
+    _localMatrix[3][0] = tt * ((a11 * a11 + a12 * a12) * (h1 * (3) + h2 * (-2) + h3 * (-1)) + (a11 * a21 +
+        a12 * a22) * (h1 * (14) + h2 * (3) + h3 * (3)));
+    _localMatrix[3][1] = tt * ((a11 * a21 + a12 * a22) * (h1 * (3) + h2 * (14) + h3 * (3)) + (a21 * a21 + a22 * a22) * (h1 * (-
+        2) + h2 * (3) + h3 * (-1)));
+    _localMatrix[3][2] = tt * ((a11 * a31 + a12 * a32) * (h1 * (-1) + h2 * (-2) + h3 * (3)) + (a21 * a31 +
+        a22 * a32) * (h1 * (-2) + h2 * (-1) + h3 * (3)));
+    _localMatrix[4][0] = tt * ((a21 * a11 + a22 * a12) * (h1 * (3) + h2 * (-1) + h3 * (-2)) + (a31 * a11 +
+        a32 * a12) * (h1 * (3) + h2 * (-2) + h3 * (-1)));
+    _localMatrix[4][1] = tt * ((a21 * a21 + a22 * a22) * (h1 * (-1) + h2 * (3) + h3 * (-2)) + (a31 * a21 +
+        a32 * a22) * (h1 * (3) + h2 * (14) + h3 * (3)));
+    _localMatrix[4][2] = tt * ((a21 * a31 + a22 * a32) * (h1 * (3) + h2 * (3) + h3 * (14)) + (a31 * a31 + a32 * a32) * (h1 * (-
+        1) + h2 * (-2) + h3 * (3)));
+    _localMatrix[5][0] = tt * ((a11 * a11 + a12 * a12) * (h1 * (3) + h2 * (-1) + h3 * (-2)) + (a31 * a11 +
+        a32 * a12) * (h1 * (14) + h2 * (3) + h3 * (3)));
+    _localMatrix[5][1] = tt * ((a11 * a21 + a12 * a22) * (h1 * (-1) + h2 * (3) + h3 * (-2)) + (a31 * a21 +
+        a32 * a22) * (h1 * (-2) + h2 * (3) + h3 * (-1)));
+    _localMatrix[5][2] = tt * ((a11 * a31 + a12 * a32) * (h1 * (3) + h2 * (3) + h3 * (14)) + (a31 * a31 + a32 * a32) * (h1 * (-
+        2) + h2 * (-1) + h3 * (3)));
+    _localMatrix[3][3] = tt * ((a11 * a11 + a12 * a12) * (h1 * (8) + h2 * (24) + h3 * (8)) + (a11 * a21 +
+        a12 * a22) * (h1 * (16) + h2 * (16) + h3 * (8)) + (a21 * a21 + a22 * a22) * (h1 * (24) + h2 * (8) + h3 * (8)));
+    _localMatrix[4][3] = tt * ((a11 * a21 + a12 * a22) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a11 * a31 + a12 * a32) * (h1 * (8)
+        + h2 * (24) + h3 * (8)) + (a21 * a21 + a22 * a22) * (h1 * (8) + h2 * (4) + h3 * (8)) + (a21 * a31 + a22 * a32) * (h1 * (8) + h2 * (8) +
+            h3 * (4)));
+    _localMatrix[4][4] = tt * ((a21 * a21 + a22 * a22) * (h1 * (8) + h2 * (8) + h3 * (24)) + (a21 * a31 +
+        a22 * a32) * (h1 * (8) + h2 * (16) + h3 * (16)) + (a31 * a31 + a32 * a32) * (h1 * (8) + h2 * (24) + h3 * (8)));
+    _localMatrix[5][3] = tt * ((a11 * a11 + a12 * a12) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a11 * a21 + a12 * a22) * (h1 * (8)
+        + h2 * (4) + h3 * (8)) + (a11 * a31 + a12 * a32) * (h1 * (8) + h2 * (8) + h3 * (4)) + (a21 * a31 + a22 * a32) * (h1 * (24) + h2 * (8) +
+            h3 * (8)));
+    _localMatrix[5][4] = tt * ((a11 * a21 + a12 * a22) * (h1 * (24) + h2 * (8) + h3 * (8)) + (a11 * a31 +
+        a12 * a32) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a21 * a31 + a22 * a32) * (h1 * (8) + h2 * (4) + h3 * (8)) + (a31 * a31 +
+            a32 * a32) * (h1 * (8) + h2 * (8) + h3 * (4)));
+    _localMatrix[5][5] = tt * ((a11 * a11 + a12 * a12) * (h1 * (8) + h2 * (8) + h3 * (24)) + (a11 * a31 +
+        a12 * a32) * (h1 * (16) + h2 * (8) + h3 * (16)) + (a31 * a31 + a32 * a32) * (h1 * (24) + h2 * (8) + h3 * (8)));
 }
 
-void G_matrix(double* p1, double* p2, double* p3, double** G_matr, int k) {
-	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-	double mid12[2] = { (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 };
-	double mid23[2] = { (p2[0] + p3[0]) / 2, (p2[1] + p3[1]) / 2 };
-	double mid31[2] = { (p3[0] + p1[0]) / 2, (p3[1] + p1[1]) / 2 };
-
-	double ck = lambda(k, p1) * fabs(det) / 2; // Среднее значение коэффициента
-	double invDet = 1.0 / (det * det);
-
-	// Формируем матрицу G
-	G_matr[0][0] = ck * ((p2[1] - p3[1]) * (p2[1] - p3[1]) + (p3[0] - p2[0]) * (p3[0] - p2[0])) * invDet;
-	G_matr[0][1] = ck * ((p2[1] - p3[1]) * (mid23[1] - p1[1]) + (p3[0] - p2[0]) * (p1[0] - mid23[0])) * invDet;
-	G_matr[0][2] = ck * ((p2[1] - p3[1]) * (p1[1] - mid12[1]) + (p3[0] - p2[0]) * (mid12[0] - p1[0])) * invDet;
-
-	G_matr[1][0] = ck * ((mid23[1] - p1[1]) * (p2[1] - p3[1]) + (mid23[0] - p1[0]) * (p3[0] - p2[0])) * invDet;
-	G_matr[1][1] = ck * ((mid23[1] - p1[1]) * (mid23[1] - p1[1]) + (mid23[0] - p1[0]) * (mid23[0] - p1[0])) * invDet;
-	G_matr[1][2] = ck * ((mid23[1] - p1[1]) * (p1[1] - mid12[1]) + (mid23[0] - p1[0]) * (mid12[0] - p1[0])) * invDet;
-
-	G_matr[2][0] = ck * ((p1[1] - mid12[1]) * (p1[1] - mid12[1]) + (p1[0] - mid12[0]) * (mid12[0] - p2[0])) * invDet;
-	G_matr[2][1] = ck * ((mid12[1] - p2[1]) * (mid12[1] - p2[1]) + (mid12[0] - p2[0]) * (p2[0] - p3[0])) * invDet;
-	G_matr[2][2] = ck * ((p2[1] - p3[1]) * (p2[1] - p3[1]) + (p2[0] - p3[0]) * (p2[0] - p3[0])) * invDet;
+void Solver::buildLocalMassMatrix(int numberElement) {
+    const int reg = _elements[numberElement].region;
+    int n1 = _elements[numberElement]._nodes[0];
+    int n2 = _elements[numberElement]._nodes[1];
+    int n3 = _elements[numberElement]._nodes[2];
+    const real det = fabs((_xNode[n2] - _xNode[n1]) * (_yNode[n3] - _yNode[n1]) - (_xNode[n3] -
+        _xNode[n1]) * (_yNode[n2] - _yNode[n1]));
+    const real g = _problem.gamma(reg);
+    const real tt = g * det / 360.0;
+    _localMassMatrix[0][0] = tt * (6);
+    _localMassMatrix[1][0] = tt * (-1);
+    _localMassMatrix[1][1] = tt * (6);
+    _localMassMatrix[2][0] = tt * (-1);
+    _localMassMatrix[2][1] = tt * (-1);
+    _localMassMatrix[2][2] = tt * (6);
+    _localMassMatrix[3][0] = 0;
+    _localMassMatrix[3][1] = 0;
+    _localMassMatrix[3][2] = tt * (-4);
+    _localMassMatrix[4][0] = tt * (-4);
+    _localMassMatrix[4][1] = 0;
+    _localMassMatrix[4][2] = 0;
+    _localMassMatrix[5][0] = 0;
+    _localMassMatrix[5][1] = tt * (-4);
+    _localMassMatrix[5][2] = 0;
+    _localMassMatrix[3][3] = tt * (32);
+    _localMassMatrix[4][3] = tt * (16);
+    _localMassMatrix[4][4] = tt * (32);
+    _localMassMatrix[5][3] = tt * (16);
+    _localMassMatrix[5][4] = tt * (16);
+    _localMassMatrix[5][5] = tt * (32);
 }
 
-void local_matrix(int num_of_finit_element, double** local_matr, double* local_F) {
-	int k = finit[num_of_finit_element][0];
-	int l = finit[num_of_finit_element][1];
-	int m = finit[num_of_finit_element][2];
-
-	// Выделяем матрицы размером 6x6
-	double** M_matr = new double* [6];
-	double** G_matr = new double* [6];
-
-	for (int i = 0; i < 6; i++) {
-		M_matr[i] = new double[6]();
-		G_matr[i] = new double[6]();
-	}
-
-	// Заполнение матриц
-	M_matrix(point[k], point[l], point[m], gamma_betta[finit_in_area[num_of_finit_element]][0], M_matr, local_F, finit_in_area[num_of_finit_element]);
-	G_matrix(point[k], point[l], point[m], G_matr, finit_in_area[num_of_finit_element]);
-
-	// Объединяем результаты
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			local_matr[i][j] = M_matr[i][j] + G_matr[i][j];
-		}
-	}
-
-	// Освобождение памяти
-	for (int i = 0; i < 6; i++) {
-		delete[] M_matr[i];
-		delete[] G_matr[i];
-	}
-	delete[] M_matr;
-	delete[] G_matr;
+void Solver::buildLocalRightPart(int numberElement) {
+    int n1 = _elements[numberElement]._nodes[0];
+    int n2 = _elements[numberElement]._nodes[1];
+    int n3 = _elements[numberElement]._nodes[2];
+    int n4 = _elements[numberElement]._nodes[3];
+    int n5 = _elements[numberElement]._nodes[4];
+    int n6 = _elements[numberElement]._nodes[5];
+    const real det = fabs((_xNode[n2] - _xNode[n1]) * (_yNode[n3] - _yNode[n1]) - (_xNode[n3] -
+        _xNode[n1]) * (_yNode[n2] - _yNode[n1]));
+    const int reg = _elements[numberElement].region;
+    const real tt = det / 360.0;
+    const real f1 = _problem.rightPart(reg, _xNode[n1], _yNode[n1]);
+    const real f2 = _problem.rightPart(reg, _xNode[n2], _yNode[n2]);
+    const real f3 = _problem.rightPart(reg, _xNode[n3], _yNode[n3]);
+    const real f4 = _problem.rightPart(reg, _xNode[n4], _yNode[n4]);
+    const real f5 = _problem.rightPart(reg, _xNode[n5], _yNode[n5]);
+    const real f6 = _problem.rightPart(reg, _xNode[n6], _yNode[n6]);
+    _localRightPart[0] = (6) * f1 + (-1) * f2 + (-1) * f3 + (0) * f4 + (-4) * f5 + (0) * f6;
+    _localRightPart[1] = (-1) * f1 + (6) * f2 + (-1) * f3 + (0) * f4 + (0) * f5 + (-4) * f6;
+    _localRightPart[2] = (-1) * f1 + (-1) * f2 + (6) * f3 + (-4) * f4 + (0) * f5 + (0) * f6;
+    _localRightPart[3] = (0) * f1 + (0) * f2 + (-4) * f3 + (32) * f4 + (16) * f5 + (16) * f6;
+    _localRightPart[4] = (-4) * f1 + (0) * f2 + (0) * f3 + (16) * f4 + (32) * f5 + (16) * f6;
+    _localRightPart[5] = (0) * f1 + (-4) * f2 + (0) * f3 + (16) * f4 + (16) * f5 + (32) * f6;
+    for (int i = 0; i < LOCAL_MATRIX_SIZE; i++)
+        _localRightPart[i] *= tt;
 }
 
-int uchet_kraev(int* current_kraev, double** a, double* b, double betta) {
-	double ck = 0;
-	if (current_kraev[3] == 1)
-		return 0;
-	else if (current_kraev[3] == 2) {
-		ck = mes_G(point[current_kraev[1]], point[current_kraev[2]]) / 6.0;
-		b[0] = ck * (2 * func_kraev2(point[current_kraev[1]], current_kraev[4]) + func_kraev2(point[current_kraev[2]], current_kraev[4]));
-		b[1] = ck * (func_kraev2(point[current_kraev[1]], current_kraev[4]) + 2 * func_kraev2(point[current_kraev[2]], current_kraev[4]));
-		return 1;
-	}
-	else {
-		ck = betta * mes_G(point[current_kraev[1]], point[current_kraev[2]]) / 6;
-		a[0][0] = 2 * ck;
-		a[0][1] = ck;
-		a[1][0] = ck;
-		a[1][1] = 2 * ck;
-		b[0] = ck * (2 * func_kraev3(point[current_kraev[1]], current_kraev[4]) + func_kraev3(point[current_kraev[2]], current_kraev[4]));
-		b[1] = ck * (func_kraev3(point[current_kraev[1]], current_kraev[4]) + 2 * func_kraev3(point[current_kraev[2]], current_kraev[4]));
-		return 2;
-	}
+void Solver::considerFirstBoundary() {
+    int i, n;
+    real ug;
+    for (i = 0, n = _boundary.size(); i < n; ++i) {
+        if (_boundary[i][0] == 1) break;
+    }
+    const double BIG_NUM = 1e50;
+    while (i < n && _boundary[i][0] == 1) {
+        int region = _boundary[i][1];
+        for (int j = 2; j < 5; j++) {
+            ug = _problem.ug(region, _xNode[_boundary[i][j]], _yNode[_boundary[i][j]]);
+            _di[_boundary[i][j]] = BIG_NUM;
+            _f[_boundary[i][j]] = ug * BIG_NUM;
+        }
+        ++i;
+    }
 }
 
-void pervoe_kraevoe(int* current_kraev) {
-	int kol = 0, m = 0;
-	int lbeg;
-	int lend;
-	di[current_kraev[1]] = 1;
-	di[current_kraev[2]] = 1;
+void Solver::considerSecondBoundary() {
+    int i, n = _boundary.size(), region;
+    int n1, n2, n3;
+    real t1, t2, t3;
+    real tt;
+    for (i = 0; i < n; ++i) {
+        if (_boundary[i][0] == 2)
+            break;
+    }
+    while (i < n && _boundary[i][0] == 2)
+    {
+        region = _boundary[i][1];
+        n1 = _boundary[i][2];
+        n2 = _boundary[i][3];
+        n3 = _boundary[i][4];
+        t1 = _problem.theta(region, _xNode[n1], _yNode[n1]);
+        t2 = _problem.theta(region, _xNode[n2], _yNode[n2]);
+        t3 = _problem.theta(region, _xNode[n3], _yNode[n3]);
+        tt = sqrt((_xNode[n1] - _xNode[n3]) * (_xNode[n1] - _xNode[n3]) +
+            (_yNode[n1] - _yNode[n3]) * (_yNode[n1] - _yNode[n3])) / 30.0;
+        _localRightPartBoundary[0] = tt * ((4) * t1 + (2) * t2 + (-1) * t3);
+        _localRightPartBoundary[1] = tt * ((2) * t1 + (16) * t2 + (2) * t3);
+        _localRightPartBoundary[2] = tt * ((-1) * t1 + (2) * t2 + (4) * t3);
+        _f[n1] += _localRightPartBoundary[0];
+        _f[n2] += _localRightPartBoundary[1];
+        _f[n3] += _localRightPartBoundary[2];
+        ++i;
+    }
 
-	F[current_kraev[1]] = func_kraev1(point[current_kraev[1]], current_kraev[4]);
-	F[current_kraev[2]] = func_kraev1(point[current_kraev[2]], current_kraev[4]);
-
-	kol = ig[current_kraev[1] + 1] - ig[current_kraev[1]];
-
-	for (int i = 0; i < kol; i++)
-		ggl[ig[current_kraev[1]] + i] = 0;
-
-	kol = ig[current_kraev[2] + 1] - ig[current_kraev[2]];
-	for (int i = 0; i < kol; i++)
-		ggl[ig[current_kraev[2]] + i] = 0;
-
-	for (int i = current_kraev[1] + 1; i < num_points; i++) {
-		lbeg = ig[i];
-		lend = ig[i + 1];
-		for (int p = lbeg; p < lend; p++)
-			if (jg[p] == current_kraev[1]) {
-				ggu[p] = 0;
-				continue;
-			}
-	}
-	for (int i = current_kraev[2] + 1; i < num_points; i++)
-	{
-		lbeg = ig[i];
-		lend = ig[i + 1];
-		for (int p = lbeg; p < lend; p++)
-			if (jg[p] == current_kraev[2]) {
-				ggu[p] = 0;
-				continue;
-			}
-	}
 }
 
+void Solver::considerThirdBoundary() {
+    int i, n = _boundary.size(), region;
+    int n1, n2, n3;
+    real ub1, ub2, ub3;
+    real tt;
+    real beta;
+    vi index(3);
+    for (i = 0; i < n; ++i) {
+        if (_boundary[i][0] == 3)
+            break;
+    }
+    while (i < n && _boundary[i][0] == 3)
+    {
+        region = _boundary[i][1];
+        beta = _problem.beta(region);
+        n1 = _boundary[i][2];
+        n2 = _boundary[i][3];
+        n3 = _boundary[i][4];
+        ub1 = _problem.ub(region, _xNode[n1], _yNode[n1]);
+        ub2 = _problem.ub(region, _xNode[n2], _yNode[n2]);
+        ub3 = _problem.ub(region, _xNode[n3], _yNode[n3]);
+        tt = beta * sqrt((_xNode[n1] - _xNode[n3]) * (_xNode[n1] - _xNode[n3]) +
+            (_yNode[n1] - _yNode[n3]) * (_yNode[n1] - _yNode[n3])) / 30.0;
+        _localRightPartBoundary[0] = tt * ((4) * ub1 + (2) * ub2 + (-1) * ub3);
+        _localRightPartBoundary[1] = tt * ((2) * ub1 + (16) * ub2 + (2) * ub3);
+        _localRightPartBoundary[2] = tt * ((-1) * ub1 + (2) * ub2 + (4) * ub3);
+        _f[n1] += _localRightPartBoundary[0];
+        _f[n2] += _localRightPartBoundary[1];
+        _f[n3] += _localRightPartBoundary[2];
+        _localMatrixBoundary[0][0] = tt * 4;
+        _localMatrixBoundary[0][1] = tt * 2;
+        _localMatrixBoundary[0][2] = tt * (-1);
+        _localMatrixBoundary[1][0] = tt * 2;
+        _localMatrixBoundary[1][1] = tt * 16;
+        _localMatrixBoundary[1][2] = tt * 2;
+        _localMatrixBoundary[2][0] = tt * (-1);
+        _localMatrixBoundary[2][1] = tt * 2;
+        _localMatrixBoundary[2][2] = tt * 4;
+        index[0] = n1;
+        index[1] = n2;
+        index[2] = n3;
+        addLocalBoundary(i);
+        ++i;
+    }
 
-void global_matrix() {
-	int i, j, k, p = 0, key = 0;
-	int* L = new int[3];
-	int* L2 = new int[2];
-	int* K = new int[num_points / 2];
-
-	double* local_F = new double[6];
-	double** local_matr = new double* [6];
-	for (i = 0; i < 6; i++) {
-		local_matr[i] = new double[6]();
-	}
-
-	double* b = new double[2]();
-	double** a = new double* [2];
-	for (i = 0; i < 2; i++) {
-		a[i] = new double[2]();
-	}
-
-	// Инициализация локальных матриц и правой части
-	for (k = 0; k < num_finit_elements; k++) {
-		local_matrix(k, local_matr, local_F);
-		memcpy(L, finit[k], 3 * sizeof(int));
-
-		// Объединяем локальную матрицу в глобальную
-		for (i = 0; i < 3; i++) {
-			int ibeg = L[i];
-			for (j = i + 1; j < 3; j++) {
-				int iend = L[j];
-				int h;
-
-				if (ibeg < iend) {
-					h = ig[iend];
-					while (jg[h] < ibeg) h++;
-					ggl[h] += local_matr[i][j];
-					ggu[h] += local_matr[j][i];
-				}
-				else {
-					h = ig[ibeg];
-					while (jg[h] < iend) h++;
-					ggl[h] += local_matr[i][j];
-					ggu[h] += local_matr[j][i];
-				}
-			}
-			di[ibeg] += local_matr[i][i];
-		}
-
-		// Добавляем правую часть
-		for (i = 0; i < 3; i++) {
-			F[L[i]] += local_F[i];
-		}
-	}
-
-	// Обработка краевых условий
-	for (k = 0; k < num_kraev; k++) {
-		key = uchet_kraev(kraev[k], a, b, gamma_betta[kraev[k][0]][1]);
-		if (!key) {
-			K[p++] = k;
-			continue;
-		}
-		L2[0] = kraev[k][1];
-		L2[1] = kraev[k][2];
-
-		if (key == 2) {
-			for (i = 0; i < 2; i++) {
-				int ibeg = L2[i];
-				for (j = i + 1; j < 2; j++) {
-					int iend = L2[j];
-					if (ibeg < iend) {
-						int h = ig[iend];
-						while (jg[h++] - ibeg);
-						h--;
-						ggl[h] += a[i][j];
-						ggu[h] += a[j][i];
-					}
-					else {
-						int h = ig[ibeg];
-						while (jg[h++] - iend);
-						h--;
-						ggl[h] += a[i][j];
-						ggu[h] += a[j][i];
-					}
-				}
-				di[ibeg] += a[i][i];
-			}
-		}
-
-		// Обновляем правую часть
-		for (i = 0; i < 2; i++) {
-			F[L2[i]] += b[i];
-		}
-
-		// Обнуление матрицы a и вектора b
-		for (i = 0; i < 2; i++) {
-			b[i] = 0;
-			for (j = 0; j < 2; j++) {
-				a[i][j] = 0;
-			}
-		}
-	}
-
-	// Обработка первого краевого условия
-	for (i = 0; i < p; i++) {
-		pervoe_kraevoe(kraev[K[i]]);
-	}
-
-	// Освобождение памяти
-	delete[] L;
-	delete[] L2;
-	delete[] local_F;
-	for (i = 0; i < 6; i++) {
-		delete[] local_matr[i];
-	}
-	delete[] local_matr;
-	for (i = 0; i < 2; i++) {
-		delete[] a[i];
-	}
-	delete[] a;
-	delete[] K;
 }
 
-
-
-
-
-
-double norma(double* w)//НОРМА ВЕКТОРА
-{
-	double s = 0;
-
-	for (int i = 0; i < num_points; i++)
-		s += w[i] * w[i];
-
-	return sqrt(s);
+void Solver::losInitialize() {
+    _x.resize(_N);
+    _r0.resize(_N);
+    _r.resize(_N);
+    _z.resize(_N);
+    _p.resize(_N);
+    _help.resize(_N);
+    _help2.resize(_N);
+    _help3.resize(_N);
 }
 
-double calc(int i, int j, double* gl, double* gu, int kl)//по формуле это сумма которую вычитаем
-{
-	double s = 0;
-	int k, J = jg[kl], p;
-	for (k = j; k > 0; k--)
-		for (p = ig[J]; p < ig[J + 1]; p++)
-			if (jg[p] == jg[kl - k])
-				s += gl[kl - k] * gu[p];
-	return s;
+void Solver::solveLos() {
+    losInitialize();
+    lusqDecomposition();
+    multy(_x, _help);
+    for (int i = 0; i < _N; ++i)
+        _r[i] = _f[i] - _help[i];
+    solveL(_r0, _r);
+    _r = _r0;
+    solveU(_z, _r);
+    multy(_z, _help);
+    solveL(_p, _help);
+    real rr = 1;
+    int k = 0;
+    _eps *= _eps;
+    while (rr > _eps && k < _maxIter)
+    {
+        real pp = dotProduct(_p, _p);
+        double alpha = dotProduct(_p, _r) / pp;
+        for (int i = 0; i < _N; ++i) {
+            _x[i] += alpha * _z[i];
+            _r[i] -= alpha * _p[i];
+        }
+        solveU(_help, _r);
+        multy(_help, _help2);
+        solveL(_help3, _help2);
+        real beta = -dotProduct(_p, _help3) / pp;
+        for (int i = 0; i < _N; ++i) {
+            _z[i] = _help[i] + beta * _z[i];
+            _p[i] = _help3[i] + beta * _p[i];
+        }
+        if (k % 100 != 0)
+            rr -= alpha * alpha * pp;
+        else
+            rr = dotProduct(_r, _r);
+        ++k;
+    }
 }
 
-double calcD(int j, double* gl, double* gu, int kl)//аналогично только для диагонали
-{
-	double s = 0;
-	for (int k = kl - j; k < kl; k++)
-		s += gl[k] * gu[k];
-	return s;
+void Solver::lusqDecomposition() {
+    _aal = _aau = _al;
+    _ddi = _di;
+    int j;
+    for (int i = 0; i < _N; ++i) {
+        for (j = _ia[i]; j < _ia[i + 1]; ++j)
+        {
+            _al[j] = (_aal[j] - sum(i, _ja[j]));
+            _au[j] = (_aau[j] - sum(_ja[j], i)) / _di[_ja[j]];
+        }
+        _di[i] = _ddi[i] - sum(i, i);
+    }
 }
 
-void lulu(double* gl, double* gu, double* gd)
-{
-	int i, j, kol, kl = 0, ku = 0;
-	for (i = 0; i < num_points; i++) {
-		kol = ig[i + 1] - ig[i];
-		for (j = 0; j < kol; j++, kl++)
-			gl[kl] = (ggl[kl] - calc(i, j, gl, gu, kl)) / gd[jg[kl]];
-
-		for (j = 0; j < kol; j++, ku++)
-			gu[ku] = (ggu[ku] - calc(i, j, gu, gl, ku)) / gd[jg[ku]];
-
-		gd[i] = sqrt(di[i] - calcD(j, gu, gl, kl));
-	}
+void Solver::solveL(vr& x, const vr& b) {
+    int j;
+    for (int i = 0; i < _N; ++i) {
+        double s = b[i];
+        int jEnd = _ia[i + 1];
+        for (j = _ia[i]; j < jEnd; ++j)
+            s -= _al[j] * x[_ja[j]];
+        x[i] = s / _di[i];
+    }
 }
 
-void Mult_A_Vect(double* xn)//перемножение исходной матрицы А на вектор
-{
-	long i, j, st;
-	for (i = 0; i < num_points; i++) {
-		f[i] = di[i] * xn[i];
-		for (j = ig[i]; j < ig[i + 1]; j++) {
-			st = jg[j];
-			f[i] += ggl[j] * xn[st];
-			f[st] += ggu[j] * xn[i];
-		}
-	}
-}//на выходе вектор f который является глобальным
-
-double sk_pr(double* a, double* b)//скалярное произведение векторов.
-{
-	double s = 0;
-	for (int i = 0; i < num_points; i++)
-		s += a[i] * b[i];
-	return s;
+void Solver::solveU(vr& x, const vr& b) {
+    x = b;
+    int j;
+    for (int i = _N - 1; i > -1; --i) {
+        double xi = x[i];
+        int jEnd = _ia[i + 1];
+        for (j = _ia[i]; j < jEnd; ++j)
+            x[_ja[j]] -= _au[j] * xi;
+    }
 }
 
-void LOC()
-{
-	double nvzk, alfa, beta, skp, eps = 9.999999682655226e-030;
-	int i;
-
-	double lastnvzk;
-
-	Mult_A_Vect(x);
-
-	for (i = 0; i < num_points; i++)
-		z[i] = r[i] = F[i] - f[i];
-
-	Mult_A_Vect(z);
-
-	for (i = 0; i < num_points; i++)
-		p[i] = f[i];
-
-	nvzk = sqrt(sk_pr(r, r)) / sqrt(sk_pr(F, F));
-
-	for (int k = 1; k<10000 && nvzk > eps; k++)
-	{
-		lastnvzk = nvzk;
-		skp = sk_pr(p, p);
-		alfa = sk_pr(p, r) / skp;
-		for (i = 0; i < num_points; i++) {
-			x[i] += alfa * z[i];
-			r[i] -= alfa * p[i];
-		}
-
-		Mult_A_Vect(r);
-		beta = -sk_pr(p, f) / skp;
-		for (i = 0; i < num_points; i++) {
-			z[i] = r[i] + beta * z[i];
-			p[i] = f[i] + beta * p[i];
-		}
-		nvzk = sqrt(sk_pr(r, r)) / sqrt(sk_pr(F, F));
-	}
+void Solver::multy(const vr& x, vr& result) {
+    int kk, i, j, kol_str, st;
+    kk = 0;
+    for (i = 0; i < _N; ++i)
+        result[i] = _ddi[i] * x[i];
+    for (i = 1; i < _N; ++i) {
+        kol_str = _ia[i + 1] - _ia[i];
+        for (j = 0; j < kol_str; ++j, ++kk)
+        {
+            st = _ja[kk];
+            result[i] += _aal[kk] * x[st];
+            result[st] += _aau[kk] * x[i];
+        }
+    }
 }
 
-int main()
-{
-	int i = 0;
-	int key = 0;
+real Solver::dotProduct(const vr& x1, const vr& x2) const {
+    real s = 0;
+    for (int i = 0, n = x1.size(); i < n; ++i)
+        s += x1[i] * x2[i];
+    return s;
 
-	if (input())
-		cout << "Input error!" << endl;
-
-	double* tr;
-
-	x = new double[num_points];
-	di = new double[num_points];
-	F = new double[num_points];
-	z = new double[num_points];
-	r = new double[num_points];
-	p = new double[num_points];
-	l = new double[num_points];
-	l1 = new double[num_points];
-	f = new double[num_points];
-	tr = new double[num_points];
-
-	portret();
-
-	for (i = 0; i < num_points; i++)
-		di[i] = F[i] = x[i] = 0;
-
-	ggu = new double[ig[num_points] - 1];
-	ggl = new double[ig[num_points] - 1];
-
-	for (i = 0; i < ig[num_points]; i++)
-		ggu[i] = ggl[i] = 0;
-
-	global_matrix();
-
-	LOC();
-	for (int i = 0; i < num_points; i++)
-		tr[i] = x[i];
-
-	tochnoe();
-
-	ofstream file11("1.txt");
-	for (i = 0; i < num_points; i++)
-		file11 << setprecision(20) << x[i] << "	" << tr[i] << endl;
-	file11.close();
-
-	return 0;
 }
 
-void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local_F, int num_of_area) {
-	// Вычисляем детерминант для площади треугольника
-	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-	double mnoz2 = (det / 24) * gamma_betta[num_of_area][0];
-	double a = 1 / 60, b = 4 / 25, c = -1 / 360, d = 2 / 25;
-	M_matr[0][0] = a * mnoz2;
-	M_matr[0][1] = c * mnoz2;
-	M_matr[0][2] = c * mnoz2;
-	M_matr[0][3] = 0;
-	M_matr[0][4] = 0;
-	M_matr[0][5] = 0;
+real Solver::sum(int i, int j) {
+    int k, l;
+    bool find;
+    real result = 0;
+    if (i == j) {
+        for (k = _ia[i]; k < _ia[i + 1]; ++k)
+            result += _au[k] * _al[k];
+    }
+    else if (i > j) {
+        // верхний треугольник
+        for (k = _ia[j]; k < _ia[j + 1]; k++) {
+            find = false;
+            for (l = _ia[i]; l < _ia[i + 1]
+                && !find; ++l) {
+                if (_ja[l] == _ja[k]
+                    ) {
+                    result +=
+                        _au[k] * _al[l];
+                    find = true;
+                }
+            }
+        }
+    }
+    else {
+        // нижний треугольник
+        for (l = _ia[i]; l < _ia[i + 1]; l++)
+        {
+            find = false;
+            for (k = _ia[j]; k < _ia[j + 1]
+                && !find; ++k) {
+                if (_ja[l] == _ja[k]
+                    ) {
+                    result +=
+                        _au[k] * _al[l];
+                    find = true;
+                }
+            }
+        }
+    }
+    return result;
 
-	M_matr[1][0] = c * mnoz2;
-	M_matr[1][1] = a * mnoz2;
-	M_matr[1][2] = c * mnoz2;
-	M_matr[1][3] = 0;
-	M_matr[1][4] = 0;
-	M_matr[1][5] = 0;
-
-	M_matr[2][0] = c * mnoz2;
-	M_matr[2][1] = c * mnoz2;
-	M_matr[2][2] = a * mnoz2;
-	M_matr[2][3] = 0;
-	M_matr[2][4] = 0;
-	M_matr[2][5] = 0;
-
-	M_matr[3][0] = 0;
-	M_matr[3][1] = 0;
-	M_matr[3][2] = 0;
-	M_matr[3][3] = b * mnoz2;
-	M_matr[3][4] = d * mnoz2;
-	M_matr[3][5] = d * mnoz2;
-
-	M_matr[4][0] = 0;
-	M_matr[4][1] = 0;
-	M_matr[4][2] = 0;
-	M_matr[4][3] = d * mnoz2;
-	M_matr[4][4] = b * mnoz2;
-	M_matr[4][5] = d * mnoz2;
-
-	M_matr[5][0] = 0;
-	M_matr[5][1] = 0;
-	M_matr[5][2] = 0;
-	M_matr[5][3] = d * mnoz2;
-	M_matr[5][4] = d * mnoz2;
-	M_matr[5][5] = b * mnoz2;
 }
 
-void G_matrix(double* p1, double* p2, double* p3, double** G_matr, double gamma, int k) {
-	double lamda[6] = { 0,1,2,3,4,5 };
-	double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-	double mid12[2] = { (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 };
-	double mid23[2] = { (p2[0] + p3[0]) / 2, (p2[1] + p3[1]) / 2 };
-	double mid31[2] = { (p3[0] + p1[0]) / 2, (p3[1] + p1[1]) / 2 };
-	double a11, a21, a12, a22, a31, a32;
-	a11 = (p2[1] - p3[1]) / det;
-	a12 = (p3[0] - p2[0]) / det;
-	a21 = (p3[1] - p1[1]) / det;
-	a22 = (p1[0] - p3[0]) / det;
-	a31 = (p1[1] - p2[1]) / det;
-	a32 = (p2[0] - p1[0]) / det;
-	G_matr[0][0] = a11 * a11 + a12 * a12;
-	G_matr[0][1] = -2 / 3 * (a21 * a12 + a11 * a21);
-	G_matr[0][2] = -2 / 3 * (a11 * a31 + a12 * a32);
-	G_matr[0][3] = 2 / 3 * (a21 * a11 + a22 * a12);
-	G_matr[0][4] = 0;
-	G_matr[0][5] = 2 / 3 * (a31 * a11 + a32 * a12);
-
-	G_matr[1][0] = -2 / 3 * (a21 * a12 + a11 * a21);
-	G_matr[1][1] = a22 * a22 + a21 * a21;
-	G_matr[1][2] = -2 / 3 * (a22 * a32 + a21 * a31);
-	G_matr[1][3] = 2 / 3 * (a12 * a22 + a11 * a21);
-	G_matr[1][4] = 2 / 3 * (a32 * a22 + a31 * a21);
-	G_matr[1][5] = 0;
-
-	G_matr[2][0] = -2 / 3 * (a11 * a31 + a12 * a32);
-	G_matr[2][1] = -2 / 3 * (a22 * a32 + a21 * a31);
-	G_matr[2][2] = a31 * a31 + a32 * a32;
-	G_matr[2][3] = 0;
-	G_matr[2][4] = 2 / 3 * (a21 * a31 + a22 * a32);
-	G_matr[2][5] = 2 / 3 * (a11 * a31 + a12 * a32);
-
-	G_matr[3][0] = 2 / 3 * (a21 * a11 + a22 * a12);
-	G_matr[3][1] = 2 / 3 * (a12 * a22 + a11 * a21);
-	G_matr[3][2] = 0;
-	G_matr[3][3] = 16 / 12 * (a11 * a11 + a12 * a12) + 32 / 24 * (a22 * a12 + a11 * a21) + 16 / 12 * (a22 * a22 + a21 * a21);
-	G_matr[3][4] = 16 / 24 * (a22 * a22 + a21 * a21) + 16 / 12 * (a11 * a31 + a12 * a32) + 16 / 24 * (a22 * a12 + a11 * a21) + 16 / 24 * (a22 * a32 + a21 * a31);
-	G_matr[3][5] = 16 / 24 * (a11 * a11 + a12 * a12) + 16 / 12 * (a22 * a32 + a21 * a31) + 16 / 24 * (a22 * a12 + a11 * a21) + 16 / 24 * (a11 * a31 + a12 * a32);
-
-	G_matr[4][0] = 0;
-	G_matr[4][1] = 2 / 3 * (a32 * a22 + a31 * a21);
-	G_matr[4][2] = 2 / 3 * (a21 * a31 + a22 * a32);
-	G_matr[4][3] = 16 / 24 * (a22 * a22 + a21 * a21) + 16 / 12 * (a11 * a31 + a12 * a32) + 16 / 24 * (a22 * a12 + a11 * a21) + 16 / 24 * (a22 * a32 + a21 * a31);
-	G_matr[4][4] = 16 / 12 * (a31 * a31 + a32 * a32) + 32 / 24 * (a22 * a32 + a21 * a31) + 16 / 12 * (a22 * a22 + a21 * a21);
-	G_matr[4][5] = 16 / 24 * (a31 * a31 + a32 * a32) + 16 / 12 * (a21 * a12 + a11 * a21) + 16 / 24 * (a22 * a32 + a21 * a31) + 16 / 24 * (a11 * a31 + a12 * a32);
-
-	G_matr[5][0] = 2 / 3 * (a31 * a11 + a32 * a12);
-	G_matr[5][1] = 0;
-	G_matr[5][2] = 2 / 3 * (a11 * a31 + a12 * a32);
-	G_matr[5][3] = 16 / 24 * (a11 * a11 + a12 * a12) + 16 / 12 * (a22 * a32 + a21 * a31) + 16 / 24 * (a22 * a12 + a11 * a21) + 16 / 24 * (a11 * a31 + a12 * a32);
-	G_matr[5][4] = 16 / 24 * (a31 * a31 + a32 * a32) + 16 / 12 * (a21 * a12 + a11 * a21) + 16 / 24 * (a22 * a32 + a21 * a31) + 16 / 24 * (a11 * a31 + a12 * a32);
-	G_matr[5][5] = 16 / 12 * (a11 * a11 + a12 * a12) + 32 / 24 * (a11 * a31 + a12 * a32) + 16 / 12 * (a31 * a31 + a32 * a32);
+int main() {
+    Solver solver;
+    solver.solve();
+    return 0;
 }
