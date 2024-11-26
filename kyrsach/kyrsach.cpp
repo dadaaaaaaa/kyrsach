@@ -10,7 +10,7 @@ double** tch = NULL; // Array for points
 double* tr = NULL;  // Array for triangles
 int* k1 = NULL;  // Array for k1
 int* k2 = NULL;  // Array for k2
-int* k3 = NULL; 
+int* k3 = NULL;
 double* F = NULL;// Array for k3
 int* ig = NULL;
 int* jg = NULL;
@@ -27,12 +27,12 @@ void input() {
     // Read points
     ifstream file("toch.txt");
     file >> n;
-    tch = new double*[n]; // Allocate 1D array for points (2 coordinates per tch)
+    tch = new double* [n]; // Allocate 1D array for points (2 coordinates per tch)
     for (int i = 0; i < n; i++) {
         tch[i] = new double[2];
         for (int j = 0; j < 2; j++) {
-            file >> tch[i ][ j]; // Read into the allocated array
-            cout << tch[i][ j] << " ";
+            file >> tch[i][j]; // Read into the allocated array
+            cout << tch[i][j] << " ";
         }
     }
     file.close();
@@ -89,17 +89,13 @@ void input() {
 }
 double resh(double x, double y, int k)
 {
-    switch (k)
-    {
-    case 0: return (y * y);
-    case 1: return 20 * y - 19;
-    }
-    return 0;
+	if(!k) return (2*x+2*y);
+	else return (-1.5*x-1.5*x*y+9+12*y);
 }
 void tochnoe()
 {
     for (int i = 0; i < n; i++)
-        x[i] = resh(tch[i][0], tch[i][1],0);
+        x[i] = resh(tch[i][0], tch[i][1], 0);
 }
 
 double lambda(int k, double y, double x) {
@@ -107,15 +103,19 @@ double lambda(int k, double y, double x) {
     return (k == 0) ? 10.0 : 1.0; // Можно настроить на основании координат
 }double func(double x, double y, int i)
 {
-    if (!i) return (-20);
-    else return (0);
+    switch (i)
+    {
+    case 1:    return (2 * x + 2 * y);
+    case 2:return (-1.5 * x - 1.5 * x * y + 9 + 12 * y);
+    }
+    return 0;
 }
-double func_kraev1(double* x, int k)
+double func_kraev1(double x, double y, int k)
 {
     switch (k)
     {
-    case 0: return x[1] * x[1];
-    case 1: return x[1];
+    case 0: return (2 * x + 2 * y);
+    case 1: return(-1.5 * x - 1.5 * x * y + 9 + 12 * y);
     }
     return 0;
 }
@@ -123,9 +123,9 @@ double func_kraev2(double* x, int k)
 {
     switch (k)
     {
-    case 0: return 20;
-    case 1: return 0;
-    case 2: return (2.);
+    case 0: return 1;
+    case 1: return -1;
+    case 2: return (1 + x[0]);
     }
     return 0;
 }
@@ -133,121 +133,118 @@ double func_kraev3(double* x, int k)
 {
     switch (k)
     {
-    case 0: return (20 * x[1] - 27);
-    case 1: return 0;
+    case 0: return ((2 * x[0] + 3) / 2.0);
     }
     return 0;
 }
-
-void sort(int* mas, int k)
-{
-    int l = 0;
-    for (int i = k - 1; i >= 0; i--)
-        for (int j = 0; j <= i; j++)
-            if (mas[j] > mas[j + 1]) {
-                l = mas[j];
-                mas[j] = mas[j + 1];
-                mas[j + 1] = l;
+int* copyToOneDimensionalArray(int** source, int n, int& newSize) {
+    // Предполагаем, что максимальный размер нового массива равен n * (n - 1) (если все элементы не нулевые)
+    int* destination = new int[newSize];
+    newSize = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 1; j < n; j++) { // Начинаем с 1, чтобы пропустить первый элемент
+            if (source[i][j] != 0) {
+                destination[newSize] = source[i][j];
+                newSize++;
             }
+        }
+    }
+
+    return destination; // Возвращаем указатель на новый массив
 }
 
+void sortArray(int** arr, int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 1; j < n - 1; j++) { // Начинаем с 1, чтобы оставить первый элемент
+            for (int k = 1; k < n - j; k++) {
+                if (arr[i][k] != 0 && arr[i][k + 1] != 0 && arr[i][k] > arr[i][k + 1]) {
+                    // Меняем местами
+                    int temp = arr[i][k];
+                    arr[i][k] = arr[i][k + 1];
+                    arr[i][k + 1] = temp;
+                }
+            }
+        }
+    }
+}
 void portret()
 {
     int i = 0;
     int j = 0;
-    int k = 0;
-    int kk = 0;
-    int key = 0;
-    int o=0,pi = 0;
-    int position = 0;//позиция в массиве jg, в которую надо добавлять
-    int* mas = new int[n];
-    struct List {
-        int num;
-        List* next;
-    };
-
-    List* list = new List[n+1];
-    List* p = NULL;
-
-    ig = new int[n + 1];
-
-    for (i = 0; i < n+1; i++)
-        list[i].next = NULL;
-
-    //составление "массива", содержащего номер точки и смежные с ней 
-    for (i = 0; i < n2; i++) {
-        for (j = 0; j < 6; j++) { // Теперь 6 узлов на треугольник
-            key = 0;
-            k = tr[i+o+j];
-            
-            for (int m = 0; m < 6; m++) {
-                if (m != j) {
-                    kk = tr[i + pi + m];
-                    if (k < kk) {
-                        k += kk;
-                        kk = k - kk;
-                        k -= kk;
-                    }
-                    p = &list[k];
-                    while (p->next) {
-                        if (p->next->num == kk) {
-                            key = 1;
+    int** vrem;
+    ig = new int(n + 1);
+    vrem = new int*[n];
+    for (int i = 0; i < n; i++) {
+        vrem[i] = new int [n];
+    }
+    for (int i = 0; i < n; i++) {
+        vrem[i][0] = (i + 1);
+        for (int j = 1; j < n; j++) {
+            vrem[i][j] = 0;
+        }
+    }
+    for (int i = 0; i < n + 1; i++)
+        ig[i] = 0;
+    for (int i = 0; i < n2; i++) 
+    {
+        for (int j = 0; j < 6; j++) {
+            for (int k = 0; k < 6; k++) {
+                if (tr[i * 7 + k] > tr[i * 7 + j]) {
+                    int to = 0;
+                    int kk = tr[i * 7 + k];
+                    for (int l = 1; l < n; l++) {
+                        if (vrem[kk-1][l] == tr[i * 7 + j]) {
+                            to =1;
                             break;
                         }
-                        p = p->next;
+                        if (vrem[kk - 1][l] == 0) {
+                            break;
+                        }
                     }
-                    if (!key) {
-                        p->next = new List;
-                        p->next->num = kk;
-                        p->next->next = NULL;
+                    if(to==0)
+                    for (int l = 1; l < n; l++) {
+                        if (vrem[kk-1][l] == 0) {
+                            vrem[kk-1][l] = tr[i * 7 + j];
+                            break;
+                        }
+
                     }
                 }
+            
             }
         }
-o += 6;
-pi += 6;
     }
-
-    //составление массива ig
-    ig[0] = 0;
-    for (i = 0; i < n; i++) {
-        k = 0;
-        p = &list[i];
-        while (p = p->next)
-            k++;
-        ig[i + 1] = ig[i] + k;
-    }
-
-    jg = new int[ig[i] - 1];
-    //составление массива jg
-    for (i = 0; i < n; i++) {
-        k = 0;
-        key = 0;
-        p = &list[i];
-        while (p = p->next) {
-            mas[k] = p->num;
-            k++;
-            key = 1;
+    sortArray(vrem, n);
+    cout << endl;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            cout << vrem[i][j] << " ";
         }
-        if (key) {
-            sort(mas, --k);//сортировка
-            int ii = 0;//добавляет в jg
-            int jj = 0;
-            for (ii = position, jj = 0; ii <= k + position; ii++, jj++)
-                jg[ii] = mas[jj];
-
-            position += k + 1;
+        cout << endl;
+    }
+    for (int i = 1; i < n + 1; i++) {
+        ig[i] = ig[i - 1];
+        for (int j = 1; j < n; j++) {
+            if(vrem[i - 1][j]>0)
+            ig[i] ++;
         }
     }
+    int newSize = ig[n];
+    jg = new int[newSize];
+    jg = copyToOneDimensionalArray(vrem, n, newSize);
+    for (int i = 0; i < n + 1; i++)
+        cout << ig[i] << " ";
+    cout << endl;
+        for (int i = 0; i < newSize; i++)
+            cout << jg[i] << " ";
 }
 void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double* p6, double** M_matr, double* local_F, int num_of_area) {
     // Вычисляем детерминант для площади треугольника
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-    double mnoz2 = (det / 24);//gammy
-    double a = 1.0 / 60, b = 4.0 / 25, c = -1.0 / 360, d = 2.0 / 25;
-    double mnoz = fabs(det) / 24;
+    double mnoz2 = det;//gammy
+    double a = 1.0 / 60, b = 4.0 / 45, c = -1.0 / 360, d = 2.0 / 45,g=-1.0/90;
     double* f = new double[5];
-    double tt =  det / 360.0;//na gama domnohit
+    double tt = det / 360.0;//na gama domnohit
     M_matr[0][0] = a * mnoz2;
     M_matr[0][1] = c * mnoz2;
     M_matr[0][2] = c * mnoz2;
@@ -290,27 +287,20 @@ void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double
     M_matr[5][4] = d * mnoz2;
     M_matr[5][5] = b * mnoz2;
 
- 
 
+    f[0] =  func(p1[0], p1[1], num_of_area);
+    f[1] =  func(p2[0], p2[1], num_of_area);
+    f[2] = func(p3[0], p3[1], num_of_area);
+    f[3] = func(p4[0], p4[1], num_of_area);
+    f[4] =  func(p5[0], p5[1], num_of_area);
+    f[5] =  func(p6[0], p6[1], num_of_area);
 
-   
-
-    f[0] = mnoz * func(p1[0], p1[1], num_of_area);
-    f[1] = mnoz * func(p2[0], p2[1], num_of_area);
-    f[2] = mnoz * func(p3[0], p3[1], num_of_area);
-    f[3] = mnoz * func(p4[0], p4[1], num_of_area);
-    f[4] = mnoz * func(p5[0], p5[1], num_of_area);
-    f[5] = mnoz * func(p6[0], p6[1], num_of_area);
-    tt = det / 360.0;
-
-    local_F[0] = (6) * f[0] + (-1) * f[1] + (-1) * f[2] + (0) * f[3] + (-4) * f[4] + (0) * f[5];
-    local_F[1] = (-1) * f[0] + (6) * f[1] + (-1) * f[2] + (0) * f[3] + (0) * f[4] + (-4) * f[5];
-    local_F[2] = (-1) * f[0] + (-1) * f[1] + (6) * f[2] + (-4) * f[3] + (0) * f[4] + (0) * f[5];
-    local_F[3] = (0) * f[0] + (0) * f[1] + (-4) * f[2] + (32) * f[3] + (16) * f[4] + (16) * f[5];
-    local_F[4] = (-4) * f[0] + (0) * f[1] + (0) * f[2] + (16) * f[3] + (32) * f[4] + (16) * f[5];
-    local_F[5] = (0) * f[0] + (-4) * f[1] + (0) * f[2] + (16) * f[3] + (16) * f[4] + (32) * f[5];
-    for (int i = 0; i <6; i++)
-        local_F[i] *= tt;
+    local_F[0] = M_matr[0][0] * f[0] + M_matr[1][0] * f[1] + M_matr[2][0] * f[2] + M_matr[4][0] * f[4];
+    local_F[1] = M_matr[0][1] * f[0] + M_matr[1][1] * f[1] + M_matr[2][1] * f[2]  + M_matr[5][1] * f[5];
+    local_F[2] = M_matr[0][2] * f[0] + M_matr[1][2] * f[1] + M_matr[2][2] * f[2] + M_matr[3][2] * f[3];
+    local_F[3] = M_matr[2][3] * f[2] + M_matr[3][3] * f[3] + M_matr[4][3] * f[4] + M_matr[5][3] * f[5];
+    local_F[4] = M_matr[0][4] * f[0] + M_matr[3][4] * f[3] + M_matr[4][4] * f[4] + M_matr[5][4] * f[5];
+    local_F[5] = M_matr[1][5] * f[1] + M_matr[3][5] * f[3] + M_matr[4][5] * f[4] + M_matr[5][5] * f[5];
 
     cout << endl;
     cout << endl;
@@ -324,88 +314,120 @@ void G_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
     double mn = lamda[1] * det;
     double a11, a21, a12, a22, a31, a32;
-    a11 = (p2[1] - p3[1]) ;
-    a12 = (p3[0] - p2[0]) ;
-    a21 = (p3[1] - p1[1]);
-    a22 = (p1[0] - p3[0]) ;
-    a31 = (p1[1] - p2[1]) ;
-    a32 = (p2[0] - p1[0]) ;
+    a11 = (p2[1] - p3[1])/det;
+    a12 = (p3[0] - p2[0]) / det;
+    a21 = (p3[1] - p1[1]) / det;
+    a22 = (p1[0] - p3[0]) / det;
+    a31 = (p1[1] - p2[1]) / det;
+    a32 = (p2[0] - p1[0]) / det;
     double h1 = lambda(k, p1[1], p1[0]);
     double h2 = lambda(k, p2[1], p2[0]);
     double h3 = lambda(k, p3[1], p3[0]);
     double tt = 1.0 / 30.0 / det;
-    G_matr[0][0] = tt * (a11 * a11 + a12 * a12) * (h1 * (9) + h2 * (3) + h3 * (3));
-    G_matr[1][0] = tt * (a21 * a11 + a12 * a22) * (h1 * (-2) + h2 * (-2) + h3 * (-1));
-    G_matr[1][1] = tt * (a21 * a21 + a22 * a22) * (h1 * (3) + h2 * (9) + h3 * (3));
-    G_matr[2][0] = tt * (a31 * a11 + a12 * a32) * (h1 * (-2) + h2 * (-1) + h3 * (-2));
-    G_matr[2][1] = tt * (a31 * a21 + a22 * a32) * (h1 * (-1) + h2 * (-2) + h3 * (-2));
-    G_matr[2][2] = tt * (a31 * a31 + a32 * a32) * (h1 * (3) + h2 * (3) + h3 * (9));
-        G_matr[3][0] = tt * ((a11 * a11 + a12 * a12) * (h1 * (3) + h2 * (-2) + h3 * (-1)) + (a11 * a21 +
-            a12 * a22) * (h1 * (14) + h2 * (3) + h3 * (3)));
-    G_matr[3][1] = tt * ((a11 * a21 + a12 * a22) * (h1 * (3) + h2 * (14) + h3 * (3)) + (a21 * a21 + a22 * a22) * (h1 * (-
-        2) + h2 * (3) + h3 * (-1)));
-    G_matr[3][2] = tt * ((a11 * a31 + a12 * a32) * (h1 * (-1) + h2 * (-2) + h3 * (3)) + (a21 * a31 +
-        a22 * a32) * (h1 * (-2) + h2 * (-1) + h3 * (3)));
-    G_matr[4][0] = tt * ((a21 * a11 + a22 * a12) * (h1 * (3) + h2 * (-1) + h3 * (-2)) + (a31 * a11 +
-        a32 * a12) * (h1 * (3) + h2 * (-2) + h3 * (-1)));
-    G_matr[4][1] = tt * ((a21 * a21 + a22 * a22) * (h1 * (-1) + h2 * (3) + h3 * (-2)) + (a31 * a21 +
-        a32 * a22) * (h1 * (3) + h2 * (14) + h3 * (3)));
-    G_matr[4][2] = tt * ((a21 * a31 + a22 * a32) * (h1 * (3) + h2 * (3) + h3 * (14)) + (a31 * a31 + a32 * a32) * (h1 * (-
-        1) + h2 * (-2) + h3 * (3)));
-    G_matr[5][0] = tt * ((a11 * a11 + a12 * a12) * (h1 * (3) + h2 * (-1) + h3 * (-2)) + (a31 * a11 +
-        a32 * a12) * (h1 * (14) + h2 * (3) + h3 * (3)));
-    G_matr[5][1] = tt * ((a11 * a21 + a12 * a22) * (h1 * (-1) + h2 * (3) + h3 * (-2)) + (a31 * a21 +
-        a32 * a22) * (h1 * (-2) + h2 * (3) + h3 * (-1)));
-    G_matr[5][2] = tt * ((a11 * a31 + a12 * a32) * (h1 * (3) + h2 * (3) + h3 * (14)) + (a31 * a31 + a32 * a32) * (h1 * (-
-        2) + h2 * (-1) + h3 * (3)));
-    G_matr[3][3] = tt * ((a11 * a11 + a12 * a12) * (h1 * (8) + h2 * (24) + h3 * (8)) + (a11 * a21 +
-        a12 * a22) * (h1 * (16) + h2 * (16) + h3 * (8)) + (a21 * a21 + a22 * a22) * (h1 * (24) + h2 * (8) + h3 * (8)));
-    G_matr[4][3] = tt * ((a11 * a21 + a12 * a22) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a11 * a31 + a12 * a32) * (h1 * (8)
-        + h2 * (24) + h3 * (8)) + (a21 * a21 + a22 * a22) * (h1 * (8) + h2 * (4) + h3 * (8)) + (a21 * a31 + a22 * a32) * (h1 * (8) + h2 * (8) +
-            h3 * (4)));
-    G_matr[4][4] = tt * ((a21 * a21 + a22 * a22) * (h1 * (8) + h2 * (8) + h3 * (24)) + (a21 * a31 +
-        a22 * a32) * (h1 * (8) + h2 * (16) + h3 * (16)) + (a31 * a31 + a32 * a32) * (h1 * (8) + h2 * (24) + h3 * (8)));
-    G_matr[5][3] = tt * ((a11 * a11 + a12 * a12) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a11 * a21 + a12 * a22) * (h1 * (8)
-        + h2 * (4) + h3 * (8)) + (a11 * a31 + a12 * a32) * (h1 * (8) + h2 * (8) + h3 * (4)) + (a21 * a31 + a22 * a32) * (h1 * (24) + h2 * (8) +
-            h3 * (8)));
-    G_matr[5][4] = tt * ((a11 * a21 + a12 * a22) * (h1 * (24) + h2 * (8) + h3 * (8)) + (a11 * a31 +
-        a12 * a32) * (h1 * (4) + h2 * (8) + h3 * (8)) + (a21 * a31 + a22 * a32) * (h1 * (8) + h2 * (4) + h3 * (8)) + (a31 * a31 +
-            a32 * a32) * (h1 * (8) + h2 * (8) + h3 * (4)));
-    G_matr[5][5] = tt * ((a11 * a11 + a12 * a12) * (h1 * (8) + h2 * (8) + h3 * (24)) + (a11 * a31 +
-        a12 * a32) * (h1 * (16) + h2 * (8) + h3 * (16)) + (a31 * a31 + a32 * a32) * (h1 * (24) + h2 * (8) + h3 * (8)));
+    //cчет идет чтобы столбики были ка 0 1 2 3 4 5(ну тоесть на ввод у нас 1 3 6 2 4 5 а тут будет счиатться как 0+ 1+ 2+ 3+ 4 5(0 2 5+ 1 3 4))(0=0,1=2,2=5,3=1,4=3,5=4)
+    G_matr[0][0] = a11 * a11 + a12 * a12 * mn;
+    G_matr[0][1] = -2.0 / 3 * (a21 * a12 + a11 * a21) * mn;
+    G_matr[0][2] = (-2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
+    G_matr[0][3] = (2.0 / 3 * (a21 * a11 + a22 * a12)) * mn;
+    G_matr[0][4] = 0;
+    G_matr[0][5] = (2.0 / 3 * (a31 * a11 + a32 * a12)) * mn;
 
+    G_matr[1][0] = (-2.0 / 3 * (a21 * a12 + a11 * a21)) * mn;
+    G_matr[1][1] = (a22 * a22 + a21 * a21) * mn;
+    G_matr[1][2] = (-2.0 / 3 * (a22 * a32 + a21 * a31)) * mn;
+    G_matr[1][3] = (2.0 / 3 * (a12 * a22 + a11 * a21)) * mn;
+    G_matr[1][4] = (2.0 / 3 * (a32 * a22 + a31 * a21)) * mn;
+    G_matr[1][5] = 0;
+
+    G_matr[2][0] = (-2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
+    G_matr[2][1] = (-2.0 / 3 * (a22 * a32 + a21 * a31)) * mn;
+    G_matr[2][2] = (a31 * a31 + a32 * a32) * mn;
+    G_matr[2][3] = 0;
+    G_matr[2][4] = (2.0 / 3 * (a21 * a31 + a22 * a32)) * mn;
+    G_matr[2][5] = (2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
+
+    G_matr[3][0] = (2.0 / 3 * (a21 * a11 + a22 * a12)) * mn;
+    G_matr[3][1] = (2.0 / 3 * (a12 * a22 + a11 * a21)) * mn;
+    G_matr[3][2] = 0;
+    G_matr[3][3] = (16.0 / 12 * (a11 * a11 + a12 * a12) + 32.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 12 * (a22 * a22 + a21 * a21)) * mn;
+    G_matr[3][4] = (16.0 / 24 * (a22 * a22 + a21 * a21) + 16.0 / 12 * (a11 * a31 + a12 * a32) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31)) * mn;
+    G_matr[3][5] = (16.0 / 24 * (a11 * a11 + a12 * a12) + 16.0 / 12 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
+
+    G_matr[4][0] = 0;
+    G_matr[4][1] = (2.0 / 3 * (a32 * a22 + a31 * a21)) * mn;
+    G_matr[4][2] = (2.0 / 3 * (a21 * a31 + a22 * a32)) * mn;
+    G_matr[4][3] = (16.0 / 24 * (a22 * a22 + a21 * a21) + 16.0 / 12 * (a11 * a31 + a12 * a32) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31)) * mn;
+    G_matr[4][4] = (16.0 / 12 * (a31 * a31 + a32 * a32) + 32.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 12 * (a22 * a22 + a21 * a21)) * mn;
+    G_matr[4][5] = (16.0 / 24 * (a31 * a31 + a32 * a32) + 16.0 / 12 * (a21 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
+
+    G_matr[5][0] = (2.0 / 3 * (a31 * a11 + a32 * a12)) * mn;
+    G_matr[5][1] = 0;
+    G_matr[5][2] = (2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
+    G_matr[5][3] = (16.0 / 24 * (a11 * a11 + a12 * a12) + 16.0 / 12 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
+    G_matr[5][4] = (16.0 / 24 * (a31 * a31 + a32 * a32) + 16.0 / 12 * (a21 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
+    G_matr[5][5] = (16.0 / 12 * (a11 * a11 + a12 * a12) + 32.0 / 24 * (a11 * a31 + a12 * a32) + 16.0 / 12 * (a31 * a31 + a32 * a32)) * mn;
 
 }
-void pervoe_kraevoe(int current_kraev, int form) {
-    int kol = 0, m = 0;
+
+
+void zeroOutRow(int row) {
+    for (int i = 0; i < ig[n]; ++i) {
+        if (jg[i]-1 == row) {
+            ggu[i] = 0; // Обнуляем элементы ggu
+        }
+    }
+    int  k=0;
+    for (int i = 0; i < n; ++i) {
+        if(i==row)
+        while (ig[i+1]-( ig[i] +k) != 0) {
+            ggl[ig[i]+k] = 0; // Обнуляем элементы ggu
+            k++;
+        }
+    }
+
+}
+void pervoe_kraevoe(int vertex1, int vertex2, int vertex3,int form1, int form2, int form3) {
+    int kol = 0;
     int lbeg;
     int lend;
-    di[current_kraev] = 1;
 
-    F[current_kraev] = func_kraev1(tch[current_kraev], form);
+    // Устанавливаем значения для трех вершин
+    di[vertex1] = 1;
+    di[vertex2] = 1;
+    di[vertex3] = 1;
 
-    kol = ig[current_kraev + 1] - ig[current_kraev];
-
-    for (int i = 0; i < kol; i++)
-        ggl[ig[current_kraev] + i] = 0;
-
-    for (int i = current_kraev + 1; i < n; i++) {
-        lbeg = ig[i];
-        lend = ig[i + 1];
-        for (int p = lbeg; p < lend; p++)
-            if (jg[p] == current_kraev) {
-                ggu[p] = 0;
-                continue;
-            }
+    // Вычисляем значения для F
+    F[vertex1] = func_kraev1(tch[vertex1][0], tch[vertex1][1], form1-1);
+    F[vertex2] = func_kraev1(tch[vertex2][0], tch[vertex2][1], form2-1);
+    F[vertex3] = func_kraev1(tch[vertex3][0], tch[vertex3][1], form3-1);
+    zeroOutRow(vertex1 );
+    zeroOutRow(vertex2 );
+    zeroOutRow(vertex3 );
+    cout << endl;
+    for (int i = 0; i < n; i++) {
+        cout << di[i] << " ";
     }
+    cout << endl;
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggu[i] << " ";
+    }
+    cout << endl;
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggl[i] << " ";
+    }
+    cout << endl;
 }
-void local_matrix(int num_of_finit_element, double** local_matr, double* local_F,int io) {
-    int ko = tr[io+0];
-    int l = tr[io+1];
-    int m = tr[io+2];
-    int o = tr[io+3];
-    int p = tr[io+4];
-    int r = tr[io+5];
+
+
+
+
+void local_matrix(int num_of_finit_element, double** local_matr, double* local_F, int io) {
+    int ko = tr[io + 0]-1;
+    int l = tr[io + 1 ]-1;
+    int m = tr[io + 2 ]-1;
+    int o = tr[io + 3 ]-1;
+    int p = tr[io + 4 ]-1;
+    int r = tr[io + 5 ]-1;
     // Выделяем матрицы размером 6x6
     double** M_matr = new double* [6];
     double** G_matr = new double* [6];
@@ -416,8 +438,8 @@ void local_matrix(int num_of_finit_element, double** local_matr, double* local_F
     }
 
     // Заполнение матриц
-    M_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], M_matr, local_F, io+7);
-    G_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], G_matr, io + 7);
+    M_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], M_matr, local_F, tr[io+6]);
+    G_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], G_matr, tr[io + 6]);
 
     // Объединяем результаты
     for (int i = 0; i < 6; i++) {
@@ -436,115 +458,62 @@ void local_matrix(int num_of_finit_element, double** local_matr, double* local_F
 }
 
 void global_matrix() {
-    int i, j, k, p = 0, key = 0,o=0;
+    int i, j, k;
     int* L = new int[6];
-    int* L2 = new int[2];
-    int* K = new int[n / 2];
-
     double* local_F = new double[6];
     double** local_matr = new double* [6];
     for (i = 0; i < 6; i++) {
         local_matr[i] = new double[6]();
     }
-
-    double* b = new double[2]();
-    double** a = new double* [2];
-    for (i = 0; i < 2; i++) {
-        a[i] = new double[2]();
-    }
-
+  int t = 0;
     // Инициализация локальных матриц и правой части
-    for (k = 0; k < n2; k++) {
-        local_matrix(k, local_matr, local_F,k+o);
-        for (int i = 0; i < 6; i++) {
-            L[i] = tr[k+o+i];
-        }
-        for (int i = 0; i < 6; i++) {
-            for (int j = 0; j < 6; j++)
-                cout << local_matr[i][j] << " ";
-            cout << endl;
-        }
-        // Объединяем локальную матрицу в глобальную
-        for (i = 0; i < 6; i++) {
-            int ibeg = L[i];
-            for (j = i + 1; j < 6; j++) {
-                int iend = L[j];
-                int h;
+  for (k = 0; k < 2; k++) {
+      local_matrix(k, local_matr, local_F, k * 7);
+      for (int i = 0; i < 6; i++) {
+          L[i] = tr[k * 7 + i] - 1; // Запись индексов элементов локальной матрицы
+      }
+      for (int i = 0; i < 6; i++) {
+          for (int j = 0; j < 6; j++) {
+              cout << local_matr[i][j] << " ";
+          }
+          cout << endl;
+      }
+      // Обновление глобальной матрицы
+      for (int i = 0; i < 6; ++i) {
+          int ibeg = L[i]; // Начальный индекс строки
+          di[ibeg] += local_matr[i][i]; // Обновление диагонали
 
-                if (ibeg < iend) {
-                    h = ig[iend];
-                    while (jg[h] < ibeg) h++;
-                    ggl[h] += local_matr[i][j];
-                    ggu[h] += local_matr[j][i];
-                }
-                else {
-                    h = ig[ibeg];
-                    while (jg[h] < iend) h++;
-                    ggl[h] += local_matr[i][j];
-                    ggu[h] += local_matr[j][i];
-                }
-            }
-            di[ibeg] += local_matr[i][i];
-        }
+          for (int j = i + 1; j < 6; ++j) {
+              int iend = L[j]; // Конечный индекс
 
-        // Добавляем правую часть
-        for (i = 0; i < 6; i++) {
-            F[L[i]] += local_F[i];
-        }
+              // Выбор подходящего диапазона и обновление
+              int h;
+              if (ibeg < iend) {
+                  h = ig[iend];
+                  while (jg[h] - 1 < ibeg) h++;
+                  ggl[h] += local_matr[i][j]; // Нижний треугольник
+                  ggu[h] += local_matr[j][i]; // Верхний треугольник
+              }
+              else {
+                  h = ig[ibeg];
+                  while (jg[h] - 1 < iend) h++;
+                  ggl[h] += local_matr[i][j]; // Нижний треугольник
+                  ggu[h] += local_matr[j][i]; // Верхний треугольник
+              }
+          }
+      }
 
-        for (int i = 0; i < 6; i++) {
-            cout << F[L[i]] << " ";
-        }
-        cout << endl;
-        cout << endl;
+      // Обновление правой части
+      for (int i = 0; i < 6; ++i) {
+          F[L[i]] += local_F[i];
+      }
+  }
 
-        cout << endl;
-        o += 6;
+    for (i = 0; i < n3 * 2; i += 6) {
+        pervoe_kraevoe(k1[i]-1, k1[i + 2]-1, k1[i + 4]-1, k1[i + 1], k1[i + 3], k1[i + 5]);
     }
-    for (int i = 0; i < n; i++)
-        cout << ggu[i]<<" ";
-    cout << endl;
-    cout << endl;
-    cout << endl;
-    for (int i = 0; i < n; i++) {
-        cout << ggl[i] << " ";
-    }
-    cout << endl;
-    for (int i = 0; i < n+1; i++)
-        cout << ig[i] << " ";
-    cout << endl;
-    cout << endl;
-    cout << endl;
-    for (int i = 0; i < n; i++)
-        cout << jg[i] << " ";
-    cout << endl;
-    cout << endl;
-    cout << endl;
-    for (int i = 0; i < n; i++)
-        cout << di[i] << " ";
-    cout << endl;
-    cout << endl;
-    cout << endl;
-
-    // Обработка первого краевого условия
-  /*  for (i = 0; i < n3; i++) {
-            pervoe_kraevoe(k1[i],k1[i+1]);
-    }*/
-
-    // Освобождение памятиa
-    delete[] L;
-    delete[] L2;
-    delete[] local_F;
-    for (i = 0; i < 6; i++) {
-        delete[] local_matr[i];
-    }
-    delete[] local_matr;
-    for (i = 0; i < 2; i++) {
-        delete[] a[i];
-    }
-    delete[] a;
-    delete[] K;
 }
+
 
 double norma(double* w)//НОРМА ВЕКТОРА
 {
