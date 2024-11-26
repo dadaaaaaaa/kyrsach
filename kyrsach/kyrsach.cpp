@@ -249,7 +249,7 @@ void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double
     M_matr[0][1] = c * mnoz2;
     M_matr[0][2] = c * mnoz2;
     M_matr[0][3] = 0;
-    M_matr[0][4] = 0;
+    M_matr[0][3] = g * mnoz2;
     M_matr[0][5] = 0;
 
     M_matr[1][0] = c * mnoz2;
@@ -257,16 +257,16 @@ void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double
     M_matr[1][2] = c * mnoz2;
     M_matr[1][3] = 0;
     M_matr[1][4] = 0;
-    M_matr[1][5] = 0;
+    M_matr[1][5] = g * mnoz2;
 
     M_matr[2][0] = c * mnoz2;
     M_matr[2][1] = c * mnoz2;
     M_matr[2][2] = a * mnoz2;
     M_matr[2][3] = 0;
-    M_matr[2][4] = 0;
+    M_matr[2][4] = g * mnoz2;
     M_matr[2][5] = 0;
 
-    M_matr[3][0] = 0;
+    M_matr[3][0] = g * mnoz2;
     M_matr[3][1] = 0;
     M_matr[3][2] = 0;
     M_matr[3][3] = b * mnoz2;
@@ -275,17 +275,18 @@ void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double
 
     M_matr[4][0] = 0;
     M_matr[4][1] = 0;
-    M_matr[4][2] = 0;
+    M_matr[4][2] = g * mnoz2;
     M_matr[4][3] = d * mnoz2;
     M_matr[4][4] = b * mnoz2;
     M_matr[4][5] = d * mnoz2;
 
     M_matr[5][0] = 0;
-    M_matr[5][1] = 0;
+    M_matr[5][1] = g * mnoz2;
     M_matr[5][2] = 0;
     M_matr[5][3] = d * mnoz2;
     M_matr[5][4] = d * mnoz2;
     M_matr[5][5] = b * mnoz2;
+
 
 
     f[0] =  func(p1[0], p1[1], num_of_area);
@@ -528,10 +529,10 @@ double norma(double* w)//НОРМА ВЕКТОРА
 double calc(int i, int j, double* gl, double* gu, int kl)//по формуле это сумма которую вычитаем
 {
     double s = 0;
-    int k, J = jg[kl], p;
+    int k, J = jg[kl]-1, p;
     for (k = j; k > 0; k--)
         for (p = ig[J]; p < ig[J + 1]; p++)
-            if (jg[p] == jg[kl - k])
+            if (jg[p]-1 == jg[kl - k])
                 s += gl[kl - k] * gu[p];
     return s;
 }
