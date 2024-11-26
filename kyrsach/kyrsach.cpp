@@ -19,10 +19,10 @@ double* di = NULL;
 double* ggl = NULL;
 double* ggu = NULL;
 int n, n2, n3, n4, n5;
-
+bool kf2 = false, kf3 = false;
 
 void input() {
-    bool kf2 = false, kf3 = false;
+    
 
     // Read points
     ifstream file("toch.txt");
@@ -40,15 +40,15 @@ void input() {
     // Read triangles
     file.open("tr.txt");
     file >> n2;
-    tr = new double[n2 * 7]; // Allocate 1D array for triangles (7 values per triangle)
+    tr = new double[n2 * 4]; // Allocate 1D array for triangles (7 values per triangle)
     for (int i = 0; i < n2; i++) {
-        for (int j = 0; j < 7; j++) {
-            file >> tr[i * 7 + j]; // Read into the allocated array
-            if (j == 6 && tr[i * 7 + j] == 3)
+        for (int j = 0; j < 4; j++) {
+            file >> tr[i * 4 + j]; // Read into the allocated array
+            if (j == 3 && tr[i * 4 + j] == 3)
                 kf3 = true;
-            if (j == 6 && tr[i * 7 + j] == 2)
+            if (j == 3 && tr[i * 4 + j] == 2)
                 kf2 = true;
-            cout << tr[i * 7 + j] << " ";
+            cout << tr[i * 4 + j] << " ";
         }
     }
     file.close();
@@ -97,11 +97,24 @@ void tochnoe()
     for (int i = 0; i < n; i++)
         x[i] = resh(tch[i][0], tch[i][1], 0);
 }
-
-double lambda(int k, double y, double x) {
-    // Пример задания коэффициента диффузии через линейные функции
-    return (k == 0) ? 10.0 : 1.0; // Можно настроить на основании координат
-}double func(double x, double y, int i)
+double gamma(int k) {
+    switch (k)
+    {
+    case 1:    return 10;
+    case 2:    return 2;
+    }
+    return 0;
+}
+double lambda(int k) {
+    double lamd;
+    switch (k)
+    {
+    case 1:    return 10;
+    case 2:    return 2;
+    }
+    return 0;
+}
+double func(double x, double y, int i)
 {
     switch (i)
     {
@@ -137,6 +150,7 @@ double func_kraev3(double* x, int k)
     }
     return 0;
 }
+
 int* copyToOneDimensionalArray(int** source, int n, int& newSize) {
     // Предполагаем, что максимальный размер нового массива равен n * (n - 1) (если все элементы не нулевые)
     int* destination = new int[newSize];
@@ -187,13 +201,13 @@ void portret()
         ig[i] = 0;
     for (int i = 0; i < n2; i++) 
     {
-        for (int j = 0; j < 6; j++) {
-            for (int k = 0; k < 6; k++) {
-                if (tr[i * 7 + k] > tr[i * 7 + j]) {
+        for (int j = 0; j < 3; j++) {
+            for (int k = 0; k < 3; k++) {
+                if (tr[i * 4 + k] > tr[i * 4 + j]) {
                     int to = 0;
-                    int kk = tr[i * 7 + k];
+                    int kk = tr[i * 4 + k];
                     for (int l = 1; l < n; l++) {
-                        if (vrem[kk-1][l] == tr[i * 7 + j]) {
+                        if (vrem[kk-1][l] == tr[i * 4 + j]) {
                             to =1;
                             break;
                         }
@@ -204,7 +218,7 @@ void portret()
                     if(to==0)
                     for (int l = 1; l < n; l++) {
                         if (vrem[kk-1][l] == 0) {
-                            vrem[kk-1][l] = tr[i * 7 + j];
+                            vrem[kk-1][l] = tr[i * 4 + j];
                             break;
                         }
 
@@ -238,136 +252,68 @@ void portret()
         for (int i = 0; i < newSize; i++)
             cout << jg[i] << " ";
 }
-void M_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double* p6, double** M_matr, double* local_F, int num_of_area) {
-    // Вычисляем детерминант для площади треугольника
+
+void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local_F, int num_of_area) {
+    int i = 0;
+    int j = 0;
+    double r12 = (p1[0] + p2[0]) / 2;
+    double r13 = (p1[0] + p3[0]) / 2;
+    double r32 = (p3[0] + p2[0]) / 2;
+    double r123 = (p1[0] + p2[0] + p3[0]) / 3;
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-    double mnoz2 = det;//gammy
-    double a = 1.0 / 60, b = 4.0 / 45, c = -1.0 / 360, d = 2.0 / 45,g=-1.0/90;
-    double* f = new double[5];
-    double tt = det / 360.0;//na gama domnohit
-    M_matr[0][0] = a * mnoz2;
-    M_matr[0][1] = c * mnoz2;
-    M_matr[0][2] = c * mnoz2;
-    M_matr[0][3] = 0;
-    M_matr[0][3] = g * mnoz2;
-    M_matr[0][5] = 0;
+    double mnoz = fabs(det) / 24;
+    double* f = new double[3];
+    double mnoz2 = gamma(num_of_area)* mnoz*r123;
+    f[0] = mnoz * func(p1[0], p1[1], num_of_area)* p1[0];
+    f[1] = mnoz * func(p2[0], p2[1], num_of_area)* p2[0];
+    f[2] = mnoz * func(p3[0], p3[1], num_of_area)* p3[0];
+    local_F[0] = 2 * f[0] + f[1] + f[2];
+    local_F[1] = f[0] + 2 * f[1] + f[2];
+    local_F[2] = f[0] + f[1] + 2 * f[2];
+    for (i = 0; i < 3; i++)
+        for (j = 0; j < 3; j++)
+            if (i == j) {
+                M_matr[i][j] = 2 * mnoz;
+                if (i == 0)
+                    M_matr[i][j] * r32;
+                if(i==2)
+                    M_matr[i][j] * r12;
+                if(i==1)
+                    M_matr[i][j] * r13;
+            }
+            else
+                M_matr[i][j] = mnoz2;
 
-    M_matr[1][0] = c * mnoz2;
-    M_matr[1][1] = a * mnoz2;
-    M_matr[1][2] = c * mnoz2;
-    M_matr[1][3] = 0;
-    M_matr[1][4] = 0;
-    M_matr[1][5] = g * mnoz2;
-
-    M_matr[2][0] = c * mnoz2;
-    M_matr[2][1] = c * mnoz2;
-    M_matr[2][2] = a * mnoz2;
-    M_matr[2][3] = 0;
-    M_matr[2][4] = g * mnoz2;
-    M_matr[2][5] = 0;
-
-    M_matr[3][0] = g * mnoz2;
-    M_matr[3][1] = 0;
-    M_matr[3][2] = 0;
-    M_matr[3][3] = b * mnoz2;
-    M_matr[3][4] = d * mnoz2;
-    M_matr[3][5] = d * mnoz2;
-
-    M_matr[4][0] = 0;
-    M_matr[4][1] = 0;
-    M_matr[4][2] = g * mnoz2;
-    M_matr[4][3] = d * mnoz2;
-    M_matr[4][4] = b * mnoz2;
-    M_matr[4][5] = d * mnoz2;
-
-    M_matr[5][0] = 0;
-    M_matr[5][1] = g * mnoz2;
-    M_matr[5][2] = 0;
-    M_matr[5][3] = d * mnoz2;
-    M_matr[5][4] = d * mnoz2;
-    M_matr[5][5] = b * mnoz2;
-
-
-
-    f[0] =  func(p1[0], p1[1], num_of_area);
-    f[1] =  func(p2[0], p2[1], num_of_area);
-    f[2] = func(p3[0], p3[1], num_of_area);
-    f[3] = func(p4[0], p4[1], num_of_area);
-    f[4] =  func(p5[0], p5[1], num_of_area);
-    f[5] =  func(p6[0], p6[1], num_of_area);
-
-    local_F[0] = M_matr[0][0] * f[0] + M_matr[1][0] * f[1] + M_matr[2][0] * f[2] + M_matr[4][0] * f[4];
-    local_F[1] = M_matr[0][1] * f[0] + M_matr[1][1] * f[1] + M_matr[2][1] * f[2]  + M_matr[5][1] * f[5];
-    local_F[2] = M_matr[0][2] * f[0] + M_matr[1][2] * f[1] + M_matr[2][2] * f[2] + M_matr[3][2] * f[3];
-    local_F[3] = M_matr[2][3] * f[2] + M_matr[3][3] * f[3] + M_matr[4][3] * f[4] + M_matr[5][3] * f[5];
-    local_F[4] = M_matr[0][4] * f[0] + M_matr[3][4] * f[3] + M_matr[4][4] * f[4] + M_matr[5][4] * f[5];
-    local_F[5] = M_matr[1][5] * f[1] + M_matr[3][5] * f[3] + M_matr[4][5] * f[4] + M_matr[5][5] * f[5];
-
-    cout << endl;
-    cout << endl;
-
-    cout << endl;
 
 }
 
-void G_matrix(double* p1, double* p2, double* p3, double* p4, double* p5, double* p6, double** G_matr, int k) {
-    double lamda[6] = { 0,1,2,3,4,5 };
+void G_matrix(double*p1, double* p2, double* p3, double** G_matr, int k) {
+    int i = 0;
+    int j = 0;
+    double r12 = (p1[0] + p2[0]) / 2;
+    double r13 = (p1[0] + p3[0]) / 2;
+    double r32 = (p3[0] + p2[0]) / 2;
+    double r123 = (p1[0] + p2[0] + p3[0]) / 3;
+    double ck = 0;
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-    double mn = lamda[1] * det;
-    double a11, a21, a12, a22, a31, a32;
-    a11 = (p2[1] - p3[1])/det;
-    a12 = (p3[0] - p2[0]) / det;
-    a21 = (p3[1] - p1[1]) / det;
-    a22 = (p1[0] - p3[0]) / det;
-    a31 = (p1[1] - p2[1]) / det;
-    a32 = (p2[0] - p1[0]) / det;
-    double h1 = lambda(k, p1[1], p1[0]);
-    double h2 = lambda(k, p2[1], p2[0]);
-    double h3 = lambda(k, p3[1], p3[0]);
-    double tt = 1.0 / 30.0 / det;
-    //cчет идет чтобы столбики были ка 0 1 2 3 4 5(ну тоесть на ввод у нас 1 3 6 2 4 5 а тут будет счиатться как 0+ 1+ 2+ 3+ 4 5(0 2 5+ 1 3 4))(0=0,1=2,2=5,3=1,4=3,5=4)
-    G_matr[0][0] = a11 * a11 + a12 * a12 * mn;
-    G_matr[0][1] = -2.0 / 3 * (a21 * a12 + a11 * a21) * mn;
-    G_matr[0][2] = (-2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
-    G_matr[0][3] = (2.0 / 3 * (a21 * a11 + a22 * a12)) * mn;
-    G_matr[0][4] = 0;
-    G_matr[0][5] = (2.0 / 3 * (a31 * a11 + a32 * a12)) * mn;
+    double* p12 = new double[2];
+    double* p23 = new double[2];
+    double* p31 = new double[2];
+    double fi1 = (p2[0] * p3[1] - p3[0] * p2[1]) + (p2[1]-p3[1]) * p1[0] + (p3[0]-p2[0]) * p1[1];
+    double fi2 = (p3[0] * p1[1] - p1[0] * p3[1]) + (p3[1]-p1[1]) * p2[0] + (p1[0]-p3[0]) * p2[1];
+    double fi3 = (p1[0] * p2[1] - p1[0] * p2[1]) + (p1[1]-p2[1]) * p3[0] + (p2[0]-p1[0]) * p3[1];
 
-    G_matr[1][0] = (-2.0 / 3 * (a21 * a12 + a11 * a21)) * mn;
-    G_matr[1][1] = (a22 * a22 + a21 * a21) * mn;
-    G_matr[1][2] = (-2.0 / 3 * (a22 * a32 + a21 * a31)) * mn;
-    G_matr[1][3] = (2.0 / 3 * (a12 * a22 + a11 * a21)) * mn;
-    G_matr[1][4] = (2.0 / 3 * (a32 * a22 + a31 * a21)) * mn;
-    G_matr[1][5] = 0;
+    ck = (lambda(k)*(fi1+fi2+fi3))*fabs(det) / 2;
 
-    G_matr[2][0] = (-2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
-    G_matr[2][1] = (-2.0 / 3 * (a22 * a32 + a21 * a31)) * mn;
-    G_matr[2][2] = (a31 * a31 + a32 * a32) * mn;
-    G_matr[2][3] = 0;
-    G_matr[2][4] = (2.0 / 3 * (a21 * a31 + a22 * a32)) * mn;
-    G_matr[2][5] = (2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
-
-    G_matr[3][0] = (2.0 / 3 * (a21 * a11 + a22 * a12)) * mn;
-    G_matr[3][1] = (2.0 / 3 * (a12 * a22 + a11 * a21)) * mn;
-    G_matr[3][2] = 0;
-    G_matr[3][3] = (16.0 / 12 * (a11 * a11 + a12 * a12) + 32.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 12 * (a22 * a22 + a21 * a21)) * mn;
-    G_matr[3][4] = (16.0 / 24 * (a22 * a22 + a21 * a21) + 16.0 / 12 * (a11 * a31 + a12 * a32) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31)) * mn;
-    G_matr[3][5] = (16.0 / 24 * (a11 * a11 + a12 * a12) + 16.0 / 12 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
-
-    G_matr[4][0] = 0;
-    G_matr[4][1] = (2.0 / 3 * (a32 * a22 + a31 * a21)) * mn;
-    G_matr[4][2] = (2.0 / 3 * (a21 * a31 + a22 * a32)) * mn;
-    G_matr[4][3] = (16.0 / 24 * (a22 * a22 + a21 * a21) + 16.0 / 12 * (a11 * a31 + a12 * a32) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31)) * mn;
-    G_matr[4][4] = (16.0 / 12 * (a31 * a31 + a32 * a32) + 32.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 12 * (a22 * a22 + a21 * a21)) * mn;
-    G_matr[4][5] = (16.0 / 24 * (a31 * a31 + a32 * a32) + 16.0 / 12 * (a21 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
-
-    G_matr[5][0] = (2.0 / 3 * (a31 * a11 + a32 * a12)) * mn;
-    G_matr[5][1] = 0;
-    G_matr[5][2] = (2.0 / 3 * (a11 * a31 + a12 * a32)) * mn;
-    G_matr[5][3] = (16.0 / 24 * (a11 * a11 + a12 * a12) + 16.0 / 12 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a22 * a12 + a11 * a21) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
-    G_matr[5][4] = (16.0 / 24 * (a31 * a31 + a32 * a32) + 16.0 / 12 * (a21 * a12 + a11 * a21) + 16.0 / 24 * (a22 * a32 + a21 * a31) + 16.0 / 24 * (a11 * a31 + a12 * a32)) * mn;
-    G_matr[5][5] = (16.0 / 12 * (a11 * a11 + a12 * a12) + 32.0 / 24 * (a11 * a31 + a12 * a32) + 16.0 / 12 * (a31 * a31 + a32 * a32)) * mn;
-
+    G_matr[0][0] = r32*ck * ((p2[1] - p3[1]) * (p2[1] - p3[1]) / (det * det) + 1.0 / pow(r32, 2)*(p3[0] - p2[0]) * (p3[0] - p2[0]) / (det * det));
+    G_matr[0][1] = r123*ck * ((p2[1] - p3[1]) * (p3[1] - p1[1]) / (det * det) + 1.0 / pow(r123, 2)*(p3[0] - p2[0]) * (p1[0] - p3[0]) / (det * det));
+    G_matr[0][2] = r123* ck * ((p2[1] - p3[1]) * (p1[1] - p2[1]) / (det * det) + 1.0 / pow(r123, 2) * (p3[0] - p2[0]) * (p2[0] - p1[0]) / (det * det));
+    G_matr[1][0] = r123* ck * ((p3[1] - p1[1]) * (p2[1] - p3[1]) / (det * det) + 1.0 / pow(r123, 2) * (p1[0] - p3[0]) * (p3[0] - p2[0]) / (det * det));
+    G_matr[1][1] = r13*ck * ((p3[1] - p1[1]) * (p3[1] - p1[1]) / (det * det) + 1.0 / pow(r13, 2) * (p1[0] - p3[0]) * (p1[0] - p3[0]) / (det * det));
+    G_matr[1][2] = r123* ck * ((p3[1] - p1[1]) * (p1[1] - p2[1]) / (det * det) + 1.0 / pow(r123, 2) * (p1[0] - p3[0]) * (p2[0] - p1[0]) / (det * det));
+    G_matr[2][0] = r123 * ck * ((p2[1] - p3[1]) * (p1[1] - p2[1]) / (det * det) + 1.0 / pow(r123, 2) * (p3[0] - p2[0]) * (p2[0] - p1[0]) / (det * det));
+    G_matr[2][1] = r123* ck * ((p3[1] - p1[1]) * (p1[1] - p2[1]) / (det * det) + 1.0 / pow(r123, 2) * (p1[0] - p3[0]) * (p2[0] - p1[0]) / (det * det));
+    G_matr[2][2] = r12*ck * ((p1[1] - p2[1]) * (p1[1] - p2[1]) / (det * det) + 1.0 / pow(r12, 2)* (p2[0] - p1[0]) * (p2[0] - p1[0]) / (det * det));
 }
 
 
@@ -387,7 +333,8 @@ void zeroOutRow(int row) {
     }
 
 }
-void pervoe_kraevoe(int vertex1, int vertex2, int vertex3,int form1, int form2, int form3) {
+
+void pervoe_kraevoe(int vertex1, int vertex2,int form1, int form2) {
     int kol = 0;
     int lbeg;
     int lend;
@@ -395,15 +342,12 @@ void pervoe_kraevoe(int vertex1, int vertex2, int vertex3,int form1, int form2, 
     // Устанавливаем значения для трех вершин
     di[vertex1] = 1;
     di[vertex2] = 1;
-    di[vertex3] = 1;
 
     // Вычисляем значения для F
     F[vertex1] = func_kraev1(tch[vertex1][0], tch[vertex1][1], form1-1);
     F[vertex2] = func_kraev1(tch[vertex2][0], tch[vertex2][1], form2-1);
-    F[vertex3] = func_kraev1(tch[vertex3][0], tch[vertex3][1], form3-1);
     zeroOutRow(vertex1 );
     zeroOutRow(vertex2 );
-    zeroOutRow(vertex3 );
     cout << endl;
     for (int i = 0; i < n; i++) {
         cout << di[i] << " ";
@@ -419,72 +363,74 @@ void pervoe_kraevoe(int vertex1, int vertex2, int vertex3,int form1, int form2, 
     cout << endl;
 }
 
-
-
-
 void local_matrix(int num_of_finit_element, double** local_matr, double* local_F, int io) {
     int ko = tr[io + 0]-1;
     int l = tr[io + 1 ]-1;
     int m = tr[io + 2 ]-1;
-    int o = tr[io + 3 ]-1;
-    int p = tr[io + 4 ]-1;
-    int r = tr[io + 5 ]-1;
     // Выделяем матрицы размером 6x6
-    double** M_matr = new double* [6];
-    double** G_matr = new double* [6];
+    double** M_matr = new double* [3];
+    double** G_matr = new double* [3];
 
-    for (int i = 0; i < 6; i++) {
-        M_matr[i] = new double[6]();
-        G_matr[i] = new double[6]();
+    for (int i = 0; i <3; i++) {
+        M_matr[i] = new double[3]();
+        G_matr[i] = new double[3]();
     }
-
+    ////double y, y1, y2;
+    ////y = tch[ko][1];/*
+    //double x = tch[ko][0]*cos(tch[ko][1]);
+    //double x1 = tch[l][0] * cos(tch[l][1]);
+    //double x2 = tch[m][0] * cos(tch[m][1]);
+    //double y = tch[ko][0] * cos(tch[ko][1]);
+    //double y1 = tch[l][0] * cos(tch[l][1]);
+    //double y2 = tch[m][0] * cos(tch[m][1]);*/
+    //double r = (tch[ko][0] + tch[l][0])/2;
+    //double r1 = (tch[ko][0] + tch[m][0]) / 2;
+    //double r2 = (tch[m][0] + tch[l][0]) / 2;
     // Заполнение матриц
-    M_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], M_matr, local_F, tr[io+6]);
-    G_matrix(tch[ko], tch[l], tch[m], tch[o], tch[p], tch[r], G_matr, tr[io + 6]);
+    M_matrix(tch[ko], tch[l], tch[m], M_matr, local_F, tr[io+3]);
+    G_matrix(tch[ko], tch[l], tch[m], G_matr, tr[io + 3]);
 
     // Объединяем результаты
-    for (int i = 0; i < 6; i++) {
-        for (int j = 0; j < 6; j++) {
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
             local_matr[i][j] = M_matr[i][j] + G_matr[i][j];
         }
     }
 
     // Освобождение памяти
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 3; i++) {
         delete[] M_matr[i];
         delete[] G_matr[i];
     }
-    delete[] M_matr;
-    delete[] G_matr;
 }
 
 void global_matrix() {
     int i, j, k;
-    int* L = new int[6];
-    double* local_F = new double[6];
-    double** local_matr = new double* [6];
-    for (i = 0; i < 6; i++) {
-        local_matr[i] = new double[6]();
+    int* L = new int[3];
+    double* local_F = new double[3];
+    double** local_matr = new double* [3];
+    for (i = 0; i < 3; i++) {
+        local_matr[i] = new double[3]();
     }
   int t = 0;
     // Инициализация локальных матриц и правой части
-  for (k = 0; k < 2; k++) {
-      local_matrix(k, local_matr, local_F, k * 7);
-      for (int i = 0; i < 6; i++) {
-          L[i] = tr[k * 7 + i] - 1; // Запись индексов элементов локальной матрицы
+  for (k = 0; k < n2; k++) {
+      local_matrix(k, local_matr, local_F, k *4);
+      for (int i = 0; i < 3; i++) {
+          L[i] = tr[k * 4 + i] - 1; // Запись индексов элементов локальной матрицы
       }
-      for (int i = 0; i < 6; i++) {
-          for (int j = 0; j < 6; j++) {
+      for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
               cout << local_matr[i][j] << " ";
           }
           cout << endl;
       }
       // Обновление глобальной матрицы
-      for (int i = 0; i < 6; ++i) {
+      for (int i = 0; i < 3; ++i) {
           int ibeg = L[i]; // Начальный индекс строки
           di[ibeg] += local_matr[i][i]; // Обновление диагонали
 
-          for (int j = i + 1; j < 6; ++j) {
+          for (int j = i + 1; j < 3; ++j) {
               int iend = L[j]; // Конечный индекс
 
               // Выбор подходящего диапазона и обновление
@@ -505,16 +451,23 @@ void global_matrix() {
       }
 
       // Обновление правой части
-      for (int i = 0; i < 6; ++i) {
+      for (int i = 0; i < 3; ++i) {
           F[L[i]] += local_F[i];
       }
   }
+  cout << endl;
+  if (kf3) {
 
-    for (i = 0; i < n3 * 2; i += 6) {
-        pervoe_kraevoe(k1[i]-1, k1[i + 2]-1, k1[i + 4]-1, k1[i + 1], k1[i + 3], k1[i + 5]);
+  }
+  if (kf2) {
+
+  }
+  for (int i = 0; i < n3 * 2; i++)
+      cout << k1[i] << " ";
+    for (i = 0; i < n3 * 2; i += 4) {
+        pervoe_kraevoe(k1[i]-1, k1[i + 2]-1, k1[i + 1], k1[i + 3]);
     }
 }
-
 
 double norma(double* w)//НОРМА ВЕКТОРА
 {
