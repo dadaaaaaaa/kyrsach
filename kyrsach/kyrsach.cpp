@@ -76,19 +76,19 @@ void input() {
 }
 double betta(int k) {
   
-    return 10;
+    return -1;
 }
-double ooo(int k) {
+double ooo(double x, double y,int k) {
     switch (k)
     {
-    case 1:    return 20;
-    case 2:    return 0;
+    case 1:    return 2*exp(x+y);
+    case 2:    return -2*exp(x+y);
     }
     return 0;
 }
 double resh(double x, double y)
 {
-        return (x+6* y - 2);
+    return exp(x + y);
 }
 void tochnoe()
 {
@@ -98,34 +98,34 @@ void tochnoe()
 double gamma(int k) {
     switch (k)
     {
-    case 1:    return 5;
-    case 2:    return 0;
+    case 1:    return 3;
+    case 2:    return 3;
     }
-    return 0;
+    return 3;
 }
 double lambda(int k) {
-    double lamd;
+
     switch (k)
     {
-    case 1:    return 1;
-    case 2:    return 1;
+    case 1:    return 2;
+    case 2:    return 2;
     }
-    return 1;
+    return 0;
 }
 double func(double x, double y, int i)
 {
-    switch (i)
+    /*switch (i)
     {
-    case 1:    return 5*x+30*y-10;
+    case 1:    return -20;
     case 2:    return 0;
-    }
-    return 0;
+    }*/
+    return -exp(x + y);
 }
 double func_kraev1(double x, double y, int k)
 {
     switch (k)
     {
-    case 1: return 6*y+2;
+    case 1: return exp(x);
     }
     return 0;
 }
@@ -133,7 +133,7 @@ double func_kraev3(double* x, int k)
 {
     switch (k)
     {
-    case 1: return 6*x[1]+2.1;
+    case 1: return exp(x[0] + 1)-2*exp(x[0]+x[1]);
     }
     return 0;
 }
@@ -392,14 +392,14 @@ void vtoroe (int vertex1, int vertex2, int form1) {
         m[i] = new double[2];
         for (int j = 0; j < 2; j++) {
             if (i == j)
-                m[i][j] = 2* ooo(form1);
+                m[i][j] = 2;
             else
-                m[i][j] = 1* ooo(form1);
+                m[i][j] = 1;
         }
     }
     double h = sqrt(pow((tch[vertex2][0] - tch[vertex1][0]), 2) + pow((tch[vertex2][1] - tch[vertex1][1]), 2)) / 6;
-    F[vertex1]+=h*( m[0][0] + m[0][1]);
-    F[vertex2] +=h*( m[1][0] + m[1][1]);
+    F[vertex1]+=h*( m[0][0] * ooo(tch[vertex1][0], tch[vertex1][1],form1) + m[0][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
+    F[vertex2] +=h*( m[1][0] * ooo(tch[vertex1][0], tch[vertex1][1],form1) + m[1][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
 
 }
 
