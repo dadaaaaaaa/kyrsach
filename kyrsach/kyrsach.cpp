@@ -21,12 +21,12 @@ double* ggu = NULL;
 int n, n2, n3, n4, n5;
 
 void input() {
-    
+
 
     // Read points
     ifstream file("toch.txt");
     file >> n;
-    tch = new double* [n]; 
+    tch = new double* [n];
     for (int i = 0; i < n; i++) {
         tch[i] = new double[2];
         for (int j = 0; j < 2; j++) {
@@ -38,7 +38,7 @@ void input() {
     // Read triangles
     file.open("tr.txt");
     file >> n2;
-    tr = new double[n2 * 4]; 
+    tr = new double[n2 * 4];
     for (int i = 0; i < n2; i++) {
         for (int j = 0; j < 4; j++) {
             file >> tr[i * 4 + j];
@@ -49,40 +49,40 @@ void input() {
     // Read k1
     file.open("kr_1.txt");
     file >> n3;
-    k1 = new int[n3 * 2]; 
+    k1 = new int[n3 * 2];
     for (int i = 0; i < n3 * 2; i++) {
-        file >> k1[i]; 
+        file >> k1[i];
     }
     file.close();
 
     // Read k2 if k2 is initialized
-        file.open("kr_2.txt");
-        file >> n4;
-        k2 = new int[n4 * 4]; 
-        for (int i = 0; i < n4 * 4; i++) {
-            file >> k2[i]; 
-        }
-        file.close();
-    
+    file.open("kr_2.txt");
+    file >> n4;
+    k2 = new int[n4 * 4];
+    for (int i = 0; i < n4 * 4; i++) {
+        file >> k2[i];
+    }
+    file.close();
 
-        file.open("kr_3.txt");
-        file >> n5;
-        k3 = new int[n5 * 4]; 
-        for (int i = 0; i < n5 * 4; i++) {
-            file >> k3[i]; 
-        }
-        file.close();
-    
+
+    file.open("kr_3.txt");
+    file >> n5;
+    k3 = new int[n5 * 4];
+    for (int i = 0; i < n5 * 4; i++) {
+        file >> k3[i];
+    }
+    file.close();
+
 }
 double betta(int k) {
-  
+
     return -1;
 }
-double ooo(double x, double y,int k) {
+double ooo(double x, double y, int k) {
     switch (k)
     {
-    case 1:    return 2*exp(x+y);
-    case 2:    return -2*exp(x+y);
+    case 1:    return 2 * exp(x + y);
+    case 2:    return -2 * exp(x + y);
     }
     return 0;
 }
@@ -133,7 +133,7 @@ double func_kraev3(double* x, int k)
 {
     switch (k)
     {
-    case 1: return exp(x[0] + 1)-2*exp(x[0]+x[1]);
+    case 1: return exp(x[0] + 1) - 2 * exp(x[0] + x[1]);
     }
     return 0;
 }
@@ -173,9 +173,9 @@ void portret()
     int j = 0;
     int** vrem;
     ig = new int(n + 1);
-    vrem = new int*[n];
+    vrem = new int* [n];
     for (int i = 0; i < n; i++) {
-        vrem[i] = new int [n];
+        vrem[i] = new int[n];
     }
     for (int i = 0; i < n; i++) {
         vrem[i][0] = (i + 1);
@@ -185,7 +185,7 @@ void portret()
     }
     for (int i = 0; i < n + 1; i++)
         ig[i] = 0;
-    for (int i = 0; i < n2; i++) 
+    for (int i = 0; i < n2; i++)
     {
         for (int j = 0; j < 3; j++) {
             for (int k = 0; k < 3; k++) {
@@ -193,24 +193,24 @@ void portret()
                     int to = 0;
                     int kk = tr[i * 4 + k];
                     for (int l = 1; l < n; l++) {
-                        if (vrem[kk-1][l] == tr[i * 4 + j]) {
-                            to =1;
+                        if (vrem[kk - 1][l] == tr[i * 4 + j]) {
+                            to = 1;
                             break;
                         }
                         if (vrem[kk - 1][l] == 0) {
                             break;
                         }
                     }
-                    if(to==0)
-                    for (int l = 1; l < n; l++) {
-                        if (vrem[kk-1][l] == 0) {
-                            vrem[kk-1][l] = tr[i * 4 + j];
-                            break;
-                        }
+                    if (to == 0)
+                        for (int l = 1; l < n; l++) {
+                            if (vrem[kk - 1][l] == 0) {
+                                vrem[kk - 1][l] = tr[i * 4 + j];
+                                break;
+                            }
 
-                    }
+                        }
                 }
-            
+
             }
         }
     }
@@ -218,8 +218,8 @@ void portret()
     for (int i = 1; i < n + 1; i++) {
         ig[i] = ig[i - 1];
         for (int j = 1; j < n; j++) {
-            if(vrem[i - 1][j]>0)
-            ig[i] ++;
+            if (vrem[i - 1][j] > 0)
+                ig[i]++;
         }
     }
     int newSize = ig[n];
@@ -228,8 +228,8 @@ void portret()
     for (int i = 0; i < n + 1; i++)
         cout << ig[i] << " ";
     cout << endl;
-        for (int i = 0; i < newSize; i++)
-            cout << jg[i] << " ";
+    for (int i = 0; i < newSize; i++)
+        cout << jg[i] << " ";
 }
 
 void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local_F, int num_of_area) {
@@ -238,9 +238,9 @@ void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
     double mnoz = fabs(det) / 24;
     double* f = new double[3];
-    double mnoz2 = gamma(num_of_area)* mnoz;
+    double mnoz2 = gamma(num_of_area) * mnoz;
     f[0] = mnoz * func(p1[0], p1[1], num_of_area);
-    f[1] = mnoz * func(p2[0], p2[1], num_of_area) ;
+    f[1] = mnoz * func(p2[0], p2[1], num_of_area);
     f[2] = mnoz * func(p3[0], p3[1], num_of_area);
     local_F[0] = 2 * f[0] + f[1] + f[2];
     local_F[1] = f[0] + 2 * f[1] + f[2];
@@ -256,7 +256,7 @@ void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local
 
 }
 
-void G_matrix(double*p1, double* p2, double* p3, double** G_matr, int k) {
+void G_matrix(double* p1, double* p2, double* p3, double** G_matr, int k) {
     int i = 0;
     int j = 0;
     double ck = 0;
@@ -268,23 +268,23 @@ void G_matrix(double*p1, double* p2, double* p3, double** G_matr, int k) {
     a22 = (p1[0] - p3[0]) / det;//x1-x3/det
     a31 = (p1[1] - p2[1]) / det;//y1-y2/det
     a32 = (p2[0] - p1[0]) / det;//x2-x1/det
-    double fi1 = (p2[0] * p3[1] - p3[0] * p2[1]) + (p2[1]-p3[1]) * p1[0] + (p3[0]-p2[0]) * p1[1];
-    double fi2 = (p3[0] * p1[1] - p1[0] * p3[1]) + (p3[1]-p1[1]) * p2[0] + (p1[0]-p3[0]) * p2[1];
-    double fi3 = (p1[0] * p2[1] - p1[0] * p2[1]) + (p1[1]-p2[1]) * p3[0] + (p2[0]-p1[0]) * p3[1];
-    ck = lambda(k)*fabs(det) / 2;
+    double fi1 = (p2[0] * p3[1] - p3[0] * p2[1]) + (p2[1] - p3[1]) * p1[0] + (p3[0] - p2[0]) * p1[1];
+    double fi2 = (p3[0] * p1[1] - p1[0] * p3[1]) + (p3[1] - p1[1]) * p2[0] + (p1[0] - p3[0]) * p2[1];
+    double fi3 = (p1[0] * p2[1] - p1[0] * p2[1]) + (p1[1] - p2[1]) * p3[0] + (p2[0] - p1[0]) * p3[1];
+    ck = lambda(k) * fabs(det) / 2;
     double ff = p1[0] * fi1 + p2[0] * fi2 + p3[0] * fi3;
 
-    G_matr[0][0] = ck * (a11*a11+a12*a12);
-    G_matr[0][1] = ck * (a11*a21+a12*a22);
-    G_matr[0][2] =  ck * (a11*a31+a12*a32);
+    G_matr[0][0] = ck * (a11 * a11 + a12 * a12);
+    G_matr[0][1] = ck * (a11 * a21 + a12 * a22);
+    G_matr[0][2] = ck * (a11 * a31 + a12 * a32);
 
     G_matr[1][0] = G_matr[0][1];
-    G_matr[1][1] = ck * (a21*a21+a22*a22);
-    G_matr[1][2] = ck * (a21*a31+a22*a32);
+    G_matr[1][1] = ck * (a21 * a21 + a22 * a22);
+    G_matr[1][2] = ck * (a21 * a31 + a22 * a32);
 
     G_matr[2][0] = G_matr[0][2];
     G_matr[2][1] = G_matr[1][2];
-    G_matr[2][2] = ck * (a31*a31+a32*a32);
+    G_matr[2][2] = ck * (a31 * a31 + a32 * a32);
 
 }
 
@@ -322,28 +322,28 @@ void addToElement(int row, int col, double value) {
 
     // Если row и col совпадают, обновляем значение на диагонали
     if (row == col) {
-                di[row] += value;
+        di[row] += value;
     }
 }
 
 void zeroOutRow(int row) {
     for (int i = 0; i < ig[n]; ++i) {
-        if (jg[i]-1 == row) {
+        if (jg[i] - 1 == row) {
             ggu[i] = 0; // Обнуляем элементы ggu
         }
     }
-    int  k=0;
+    int  k = 0;
     for (int i = 0; i < n; ++i) {
-        if(i==row)
-        while (ig[i+1]-( ig[i] +k) != 0) {
-            ggl[ig[i]+k] = 0; // Обнуляем элементы ggu
-            k++;
-        }
+        if (i == row)
+            while (ig[i + 1] - (ig[i] + k) != 0) {
+                ggl[ig[i] + k] = 0; // Обнуляем элементы ggu
+                k++;
+            }
     }
 
 }
 
-void pervoe_kraevoe(int vertex1, int vertex2,int form1, int form2) {
+void pervoe_kraevoe(int vertex1, int vertex2, int form1, int form2) {
     int kol = 0;
     int lbeg;
     int lend;
@@ -354,12 +354,12 @@ void pervoe_kraevoe(int vertex1, int vertex2,int form1, int form2) {
     // Вычисляем значения для F
     F[vertex1] = func_kraev1(tch[vertex1][0], tch[vertex1][1], form1);
     F[vertex2] = func_kraev1(tch[vertex2][0], tch[vertex2][1], form2);
-    zeroOutRow(vertex1 );
-    zeroOutRow(vertex2 );
+    zeroOutRow(vertex1);
+    zeroOutRow(vertex2);
 }
 
 void tretie(int vertex1, int vertex2, int form1) {
-    double** m = new double*[2];
+    double** m = new double* [2];
     for (int i = 0; i < 2; i++) {
         m[i] = new double[2];
         for (int j = 0; j < 2; j++) {
@@ -368,25 +368,25 @@ void tretie(int vertex1, int vertex2, int form1) {
             else
                 m[i][j] = 1;
         }
-    }  
+    }
     double  a = func_kraev3(tch[vertex1], form1);
     double b = func_kraev3(tch[vertex2], form1);
-    double h = betta(form1)* sqrt(pow((tch[vertex2][0] - tch[vertex1][0]), 2) + pow((tch[vertex2][1] - tch[vertex1][1]), 2))/6;
-    F[vertex1] +=h*( m[0][0] * a + m[0][1]* b);
-    F[vertex2] +=h*( m[1][0] * a + m[1][1] * b);
+    double h = betta(form1) * sqrt(pow((tch[vertex2][0] - tch[vertex1][0]), 2) + pow((tch[vertex2][1] - tch[vertex1][1]), 2)) / 6;
+    F[vertex1] += h * (m[0][0] * a + m[0][1] * b);
+    F[vertex2] += h * (m[1][0] * a + m[1][1] * b);
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
             m[i][j] *= h;
         }
     }
 
-    addToElement(vertex1, vertex1,m[0][0]);
-    addToElement(vertex1, vertex2,m[0][1]);
-    addToElement(vertex2, vertex1,m[1][0]);
-    addToElement(vertex2, vertex2,m[1][1]);
+    addToElement(vertex1, vertex1, m[0][0]);
+    addToElement(vertex1, vertex2, m[0][1]);
+    addToElement(vertex2, vertex1, m[1][0]);
+    addToElement(vertex2, vertex2, m[1][1]);
 }
 
-void vtoroe (int vertex1, int vertex2, int form1) {
+void vtoroe(int vertex1, int vertex2, int form1) {
     double** m = new double* [2];
     for (int i = 0; i < 2; i++) {
         m[i] = new double[2];
@@ -398,24 +398,24 @@ void vtoroe (int vertex1, int vertex2, int form1) {
         }
     }
     double h = sqrt(pow((tch[vertex2][0] - tch[vertex1][0]), 2) + pow((tch[vertex2][1] - tch[vertex1][1]), 2)) / 6;
-    F[vertex1]+=h*( m[0][0] * ooo(tch[vertex1][0], tch[vertex1][1],form1) + m[0][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
-    F[vertex2] +=h*( m[1][0] * ooo(tch[vertex1][0], tch[vertex1][1],form1) + m[1][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
+    F[vertex1] += h * (m[0][0] * ooo(tch[vertex1][0], tch[vertex1][1], form1) + m[0][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
+    F[vertex2] += h * (m[1][0] * ooo(tch[vertex1][0], tch[vertex1][1], form1) + m[1][1] * ooo(tch[vertex2][0], tch[vertex2][1], form1));
 
 }
 
 void local_matrix(int num_of_finit_element, double** local_matr, double* local_F, int io) {
-    int ko = tr[io + 0]-1;
-    int l = tr[io + 1 ]-1;
-    int m = tr[io + 2 ]-1;
+    int ko = tr[io + 0] - 1;
+    int l = tr[io + 1] - 1;
+    int m = tr[io + 2] - 1;
 
     double** M_matr = new double* [3];
     double** G_matr = new double* [3];
 
-    for (int i = 0; i <3; i++) {
+    for (int i = 0; i < 3; i++) {
         M_matr[i] = new double[3]();
         G_matr[i] = new double[3]();
     }
-    M_matrix(tch[ko], tch[l], tch[m], M_matr, local_F, tr[io+3]);
+    M_matrix(tch[ko], tch[l], tch[m], M_matr, local_F, tr[io + 3]);
     G_matrix(tch[ko], tch[l], tch[m], G_matr, tr[io + 3]);
 
     for (int i = 0; i < 3; i++) {
@@ -477,30 +477,30 @@ void global_matrix() {
     for (i = 0; i < n4 * 2; i += 4)
         vtoroe(k2[i] - 1, k2[i + 2] - 1, k2[i + 1]);
 
-      for (i = 0; i < n5*2; i += 4) 
-      tretie(k3[i] - 1, k3[i + 2] - 1, k3[i + 1]);
+    for (i = 0; i < n5 * 2; i += 4)
+        tretie(k3[i] - 1, k3[i + 2] - 1, k3[i + 1]);
 
-  
-    for (i = 0; i < n3*2 ; i += 4) {
-        pervoe_kraevoe(k1[i]-1, k1[i + 2]-1, k1[i + 1], k1[i + 3]);
+
+    for (i = 0; i < n3 * 2; i += 4) {
+        pervoe_kraevoe(k1[i] - 1, k1[i + 2] - 1, k1[i + 1], k1[i + 3]);
     }      cout << endl;
-      for (int i = 0; i < n; i++) {
-          cout << F[i] << " ";
-      }
-      cout << endl;
-      for (int i = 0; i < n; i++) {
-          cout << di[i] << " ";
-      }
-      cout << endl;
-      for (int i = 0; i < ig[n]; i++) {
-          cout << ggu[i] << " ";
-      }
-      cout << endl;
+    for (int i = 0; i < n; i++) {
+        cout << F[i] << " ";
+    }
+    cout << endl;
+    for (int i = 0; i < n; i++) {
+        cout << di[i] << " ";
+    }
+    cout << endl;
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggu[i] << " ";
+    }
+    cout << endl;
 
-      for (int i = 0; i < ig[n]; i++) {
-          cout << ggl[i] << " ";
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggl[i] << " ";
 
-      }
+    }
 }
 
 double norma(double* w)//НОРМА ВЕКТОРА
@@ -516,10 +516,10 @@ double norma(double* w)//НОРМА ВЕКТОРА
 double calc(int i, int j, double* gl, double* gu, int kl)//по формуле это сумма которую вычитаем
 {
     double s = 0;
-    int k, J = jg[kl]-1, p;
+    int k, J = jg[kl] - 1, p;
     for (k = j; k > 0; k--)
         for (p = ig[J]; p < ig[J + 1]; p++)
-            if (jg[p]-1 == jg[kl - k]-1)
+            if (jg[p] - 1 == jg[kl - k] - 1)
                 s += gl[kl - k] * gu[p];
     return s;
 }
@@ -538,10 +538,10 @@ void lulu(double* gl, double* gu, double* gd)
     for (i = 0; i < n; i++) {
         kol = ig[i + 1] - ig[i];
         for (j = 0; j < kol; j++, kl++)
-            gl[kl] = (ggl[kl] - calc(i, j, gl, gu, kl)) / gd[jg[kl]-1];
+            gl[kl] = (ggl[kl] - calc(i, j, gl, gu, kl)) / gd[jg[kl] - 1];
 
         for (j = 0; j < kol; j++, ku++)
-            gu[ku] = (ggu[ku] - calc(i, j, gu, gl, ku)) / gd[jg[ku]-1];
+            gu[ku] = (ggu[ku] - calc(i, j, gu, gl, ku)) / gd[jg[ku] - 1];
 
         gd[i] = sqrt(di[i] - calcD(j, gu, gl, kl));
     }
@@ -553,7 +553,7 @@ void Mult_A_Vect(double* xn)//перемножение исходной матр
     for (i = 0; i < n; i++) {
         f[i] = di[i] * xn[i];
         for (j = ig[i]; j < ig[i + 1]; j++) {
-            st = jg[j]-1;
+            st = jg[j] - 1;
             f[i] += ggl[j] * xn[st];
             f[st] += ggu[j] * xn[i];
         }
@@ -643,7 +643,7 @@ int main() {
 
     ofstream file11("1.txt");
     for (int i = 0; i < n; i++)
-        file11 << setprecision(20) << x[i] << "	" << tr[i]<< " "<< x[i]- tr[i] << endl;
+        file11 << setprecision(20) << x[i] << "	" << tr[i] << " " << x[i] - tr[i] << endl;
     file11.close();
 
 }
