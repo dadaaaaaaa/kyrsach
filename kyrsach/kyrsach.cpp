@@ -6,7 +6,7 @@
 
 using namespace std;
 
-double* z, * r, * p, * t, * r1, * l, * l1, * f,vr, tp, t0, t1,*dt0v,*dtv;//vr глобально время сделала чтобы не передавть
+double* z, * r, * p, * t, * r1, * l, * l1, * f, vr, tp, t0, t1, * dt0v, * dtv;//vr глобально время сделала чтобы не передавть
 double** tch = NULL; // Array for points
 double* tr = NULL;  // Array for triangles
 double* q1 = NULL;  // Array for triangles
@@ -15,7 +15,7 @@ int* k1 = NULL;  // Array for k1
 int* k2 = NULL;  // Array for k2
 int* k3 = NULL;
 double* T = NULL;
-double ** M_s3 = NULL;
+double** M_s3 = NULL;
 double* F = NULL;// Array for k3
 int* ig = NULL;
 int* jg = NULL;
@@ -26,18 +26,19 @@ double* ggu = NULL;
 double* di1 = NULL;
 double* ggl2 = NULL;
 double* ggu3 = NULL;
-int n, n2, n3, n4, n5,n6;
-double u0(double x, double y,int k) {
+int n, n2, n3, n4, n5, n6;
+
+double u0(double x, double y, int k) {//только для q0  и q1
     switch (k)
     {
-    case 0:    return  x+y+T[0];
-    case 1:    return x+y+ T[1];
+    case 0:    return  x * x + y * y + 3 * T[0];
+    case 1:    return  x * x + y * y + 3 * T[1];
     }
     return 0;
 }
 double betta(int k) {
 
-    return 1;
+    return 0;
 }
 double ooo(double x, double y, int k) {
     switch (k)
@@ -47,10 +48,10 @@ double ooo(double x, double y, int k) {
     }
     return 0;
 }
-void tochnoe()
+void tochnoe()//u
 {
     for (int i = 0; i < n; i++)
-        x[i] = vr+tch[i][0]+tch[i][1];
+        x[i] = tch[i][0] * tch[i][0] + tch[i][1] * tch[i][1] + 3 * vr;
 }
 double gamma(double x, double y) {//сигма
 
@@ -60,22 +61,19 @@ double lambda(double x, double y) {
 
     return 1;
 }
-double func(double x, double y, int i)
+double func(double x, double y, int i)//f
 {
     /*switch (i)
     {
     case 1:    return -20;
     case 2:    return 0;
     }*/
-    return 1;
+    return -1;
 }
 double func_kraev1(double x, double y, int k)
 {
-    switch (k)
-    {
-    case 1: return 1;//f
-    }
-    return 0;
+ 
+    return x* x + y * y + 3 * vr;
 }
 double func_kraev3(double* x, int k)
 {
@@ -245,9 +243,9 @@ void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local
     int i = 0;
     int j = 0;
     double det = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]);
-    double mnoz = fabs(det) / 24;
+    double mnoz = gamma(p1[0], p1[1])*fabs(det) / 24;
     double* f = new double[3];
-    double mnoz2 = (gamma(p1[0], p1[1])+ gamma(p2[0], p2[1])+ gamma(p3[0], p3[1])) * mnoz;
+    double mnoz2 = (gamma(p1[0], p1[1]) + gamma(p2[0], p2[1]) + gamma(p3[0], p3[1])) * mnoz;
     f[0] = mnoz * func(p1[0], p1[1], num_of_area);
     f[1] = mnoz * func(p2[0], p2[1], num_of_area);
     f[2] = mnoz * func(p3[0], p3[1], num_of_area);
@@ -260,7 +258,7 @@ void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local
                 M_matr[i][j] = 2 * mnoz;
             }
             else
-                M_matr[i][j] = mnoz2;
+                M_matr[i][j] = mnoz;
 
 
 }
@@ -297,7 +295,7 @@ void G_matrix(double* p1, double* p2, double* p3, double** G_matr, int k) {
 
 }
 
-void addToElement(int row, int col, double value,int elem) {
+void addToElement(int row, int col, double value, int elem) {
     int k = 0;
     // Проверяем, что row и col находятся в допустимых пределах
     if (row < 0 || col < 0 || row >= n || col >= n) {
@@ -336,7 +334,7 @@ void addToElement(int row, int col, double value,int elem) {
                     M_s3[1][1] = value;
                 }
                 else {
-                    M_s3[elem+1][0] = i;
+                    M_s3[elem + 1][0] = i;
                     M_s3[elem + 1][1] = value;
 
                 }
@@ -345,7 +343,7 @@ void addToElement(int row, int col, double value,int elem) {
             }
         }
     }
-    
+
 
 }
 
@@ -381,7 +379,7 @@ void pervoe_kraevoe(int vertex1, int vertex2, int form1, int form2) {
     zeroOutRow(vertex2);
 }
 
-void tretie(int vertex1, int vertex2, int form1,int elem) {
+void tretie(int vertex1, int vertex2, int form1, int elem) {
     double** m = new double* [2];
     for (int i = 0; i < 2; i++) {
         m[i] = new double[2];
@@ -410,12 +408,12 @@ void tretie(int vertex1, int vertex2, int form1,int elem) {
 
     }
     else {
-        M_s3[elem +2][0] = vertex1;
+        M_s3[elem + 2][0] = vertex1;
         M_s3[elem + 2][1] = m[0][0];
-        M_s3[elem +3][0] = vertex2;
+        M_s3[elem + 3][0] = vertex2;
         M_s3[elem + 3][1] = m[1][1];
     }
-    addToElement(vertex1, vertex1, m[0][0],elem);
+    addToElement(vertex1, vertex1, m[0][0], elem);
 
     addToElement(vertex1, vertex2, m[0][1], elem);
     addToElement(vertex2, vertex1, m[1][0], elem);
@@ -453,7 +451,7 @@ void local_matrix(int num_of_finit_element, double** local_matr, double** local_
     }
     M_matrix(tch[ko], tch[l], tch[m], M_matr, local_F, tr[io + 3]);
     G_matrix(tch[ko], tch[l], tch[m], G_matr, tr[io + 3]);
-    cout << " M"<<endl;
+    cout << " M" << endl;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             local_matr[i][j] = M_matr[i][j];
@@ -466,8 +464,8 @@ void local_matrix(int num_of_finit_element, double** local_matr, double** local_
 
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            
-            cout << local_matrG[i][j] <<" ";
+
+            cout << local_matrG[i][j] << " ";
         }
         cout << endl;
     }
@@ -477,7 +475,7 @@ void local_matrix(int num_of_finit_element, double** local_matr, double** local_
     }
 }
 
-void Mult_A_Vectr(double* xn,double *vec)//перемножение исходной матрицы А на вектор
+void Mult_A_Vectr(double* xn, double* vec)//перемножение исходной матрицы А на вектор
 {
     long i, j, st;
     for (i = 0; i < n; i++) {
@@ -496,7 +494,7 @@ void global_matrix() {
     double* local_F = new double[3];
     double** local_matr = new double* [3];
     double** local_matrG = new double* [3];
-    
+
     for (i = 0; i < 3; i++) {
         local_matr[i] = new double[3]();
         local_matrG[i] = new double[3]();
@@ -544,60 +542,52 @@ void global_matrix() {
     }
 
 
-    cout << "Матрица G" << endl;
-    for (int i = 0; i < n; i++) {
-        cout << F[i] << " ";
-    }
     for (i = 0; i < n4 * 2; i += 4)
         vtoroe(k2[i] - 1, k2[i + 2] - 1, k2[i + 1]);
-    M_s3 = new double*[n5 * 2];
+    M_s3 = new double* [n5 * 2];
 
     for (i = 0; i < n5 * 2; i += 1)
         M_s3[i] = new double[2];
 
     //M_S3
     for (i = 0; i < n5 * 2; i += 4)
-        tretie(k3[i] - 1, k3[i + 2] - 1, k3[i + 1],i);
+        tretie(k3[i] - 1, k3[i + 2] - 1, k3[i + 1], i);
     //d
-    Mult_A_Vectr(q0,dt0v);
-    Mult_A_Vectr(q1,dtv);
-
+    Mult_A_Vectr(q0, dt0v);
+    Mult_A_Vectr(q1, dtv);
     for (i = 0; i < n; i++)
-        F[i] = F[i] - t0*dt0v[i] + t1*dtv[i];
+        F[i] = F[i] - t0 * dt0v[i] + t1 * dtv[i];
 
-    cout << "Матрица G" << endl;
-    for (int i = 0; i < n; i++) {
-        cout << F[i] << " ";
-    }
-    cout << endl;
-    for (int i = 0; i < ig[n]; i++) {
-        cout << ggu[i] << " ";
-    }
-    cout << endl;
 
-    for (int i = 0; i < ig[n]; i++) {
-        cout << ggl[i] << " ";
-
-    }
     //a=tp_M+G//вроде верно
     for (i = 0; i < ig[n]; i++) {
-        ggl[i] = (ggl[i] * tp)+ ggl2[i];
-        ggu[i] = (ggu[i] * tp)+ ggu3[i];
+        ggl[i] = (ggl[i] * tp) + ggl2[i];
+        ggu[i] = (ggu[i] * tp) + ggu3[i];
     }
     for (i = 0; i < n; i++) {
         di[i] = (di[i] * tp) + di1[i];
     }
-     //A+=M_s3
-    for (i = 0; i < n5 * 2; i+=4) {
-        ggl[int(M_s3[i + 1][0])] += M_s3[i + 1][1] ;
-        ggu[int(M_s3[i][0])] += M_s3[i][1] ;
-        di[int(M_s3[i + 2][0])] += M_s3[i+2][1] ;
-        di[int(M_s3[i + 3][0])] += M_s3[i + 3][1] ;
+    //A+=M_s3
+    for (i = 0; i < n5 * 2; i += 4) {
+        ggl[int(M_s3[i + 1][0])] += M_s3[i + 1][1];
+        ggu[int(M_s3[i][0])] += M_s3[i][1];
+        di[int(M_s3[i + 2][0])] += M_s3[i + 2][1];
+        di[int(M_s3[i + 3][0])] += M_s3[i + 3][1];
 
     }
 
-    for (i = 0; i < n3 * 2; i += 4) {
+    for (i = 0; i < n3 * 2; i = i + 4) {
         pervoe_kraevoe(k1[i] - 1, k1[i + 2] - 1, k1[i + 1], k1[i + 3]);
+    }
+    cout << "MAtrs G" << endl;
+    for (int i = 0; i < n; i++) {
+        cout << F[i] << " ";
+    }
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggu[i] << " ";
+    }
+    for (int i = 0; i < ig[n]; i++) {
+        cout << ggl[i] << " ";
     }
 }
 
@@ -710,10 +700,10 @@ int main() {
 
     ofstream file11("1.txt");
     input();    x = new double[n];
-    q0= new double[n];
-        q1= new double[n];
-        di= new double[n];
-        di1 = new double[n];
+    q0 = new double[n];
+    q1 = new double[n];
+    di = new double[n];
+    di1 = new double[n];
     F = new double[n];
     z = new double[n];
     r = new double[n];
@@ -721,17 +711,17 @@ int main() {
     l = new double[n];
     l1 = new double[n];
     f = new double[n];
-    dtv= new double[n];
-        dt0v= new double[n];
+    dtv = new double[n];
+    dt0v = new double[n];
     tr = new double[n];
 
-    for ( int hi=2 ; hi < n6;hi++) {
+    for (int hi = 2; hi < n6; hi++) {
         vr = T[hi];
-        for(int i=0;i<n;i++) {
-                q0[i] = u0(tch[i][0], tch[i][1],0);
-                q1[i] = u0(tch[i][0], tch[i][1],1);
-                cout <<" q0 " << q0[i] << " " << " q1 " << q1[i] << " ";
-            }
+        for (int i = 0; i < n; i++) {
+            q0[i] = u0(tch[i][0], tch[i][1], 0);
+            q1[i] = u0(tch[i][0], tch[i][1], 1);
+            cout << " q0 " << q0[i] << " " << " q1 " << q1[i] << " ";
+        }
 
         double  dt, dt0, dt1;
         dt = T[hi] - T[hi - 2];
@@ -749,7 +739,7 @@ int main() {
             F[i] = 0;
             x[i] = 0;
         }
-        
+
         ggu = new double[ig[n] - 1];
         ggl = new double[ig[n] - 1];
         ggu3 = new double[ig[n] - 1];
@@ -768,7 +758,7 @@ int main() {
 
         tochnoe();
 
-        file11 << vr<<endl;
+        file11 << vr << endl;
         for (int i = 0; i < n; i++)
             file11 << setprecision(20) << x[i] << "	" << tr[i] << " " << x[i] - tr[i] << endl;
         for (int i = 0; i < n; i++) {
