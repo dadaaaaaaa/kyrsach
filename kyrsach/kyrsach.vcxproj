@@ -129,6 +129,9 @@
   <ItemGroup>
     <ClCompile Include="kyrsach.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\Desktop\курсач 2\ФАЙЛ (1) (2).docx" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
