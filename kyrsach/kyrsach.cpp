@@ -35,8 +35,10 @@ int n, n2, n3, n4, n5, n6;
 double u0(double x, double y, int k) {//только для q0  и q1
     switch (k)
     {
-    case 0:   return  x * x + y * y +T[0]* T[0] * T[0];
-    case 1:   return  x * x + y * y + T[1] * T[1] * T[1];
+        //case 0:   return sin(T[0]);// 
+    case 0:   return x * x + y * y + T[0] ;
+        // case 1:   return sin(T[1]); //
+    case 1:   return x * x + y * y + T[1] ;
     }
     return 0;
 }
@@ -51,7 +53,7 @@ double ooo(double x, double y, int k) {
 void tochnoe()//u
 {
     for (int i = 0; i < n; i++)
-      x[i] = tch[i][0] * tch[i][0] + tch[i][1] * tch[i][1] + vr* vr * vr;//lkz 1-без время ,2 
+        x[i] = /*sin(vr);*/tch[i][0] * tch[i][0] + tch[i][1] * tch[i][1] + vr;//lkz 1-без время ,2 
 }
 double gamma(double x, double y) {//сигма
 
@@ -72,15 +74,15 @@ double func(double x, double y, int i)//f
     case 1:    return -40;
     case 2:    return -4;
     }*/
-   // return -8;
+    return -8;
     //return-5;
     //return 6 * vr - 8;
-    return 9*vr*vr-8;
+   // return cos(vr);
 }
 double func_kraev1(double x, double y, int k)
 {
  
-    return x * x + y * y + vr* vr * vr;
+    return /*sin(vr);*/x * x + y * y + vr;
 }
 double func_kraev3(double* x, int k)
 {
@@ -242,11 +244,6 @@ void portret()
     int newSize = ig[n];
     jg = new int[newSize];
     jg = copyToOneDimensionalArray(vrem, n, newSize);
-    for (int i = 0; i < n + 1; i++)
-        cout << ig[i] << " ";
-    cout << endl;
-    for (int i = 0; i < newSize; i++)
-        cout << jg[i] << " ";
 }
 
 void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local_F, int num_of_area) {
@@ -269,9 +266,6 @@ void M_matrix(double* p1, double* p2, double* p3, double** M_matr, double* local
             }
             else
                 M_matr[i][j] = mnoz2;
-    for (int i = 0; i < 3; i++)
-        cout << local_F[i] << " ";
-    cout << endl;
 
 }
 
@@ -654,9 +648,10 @@ void LOC()
 
 int main() {
     double* tr;
-
     ofstream file11("1.1.txt");
-    input();    x = new double[n];
+    ofstream error_log("error_log.txt"); // Файл для записи ошибок
+    input();
+    x = new double[n];
     q0 = new double[n];
     q1 = new double[n];
     di = new double[n];
@@ -674,34 +669,33 @@ int main() {
     tr = new double[n];
     x22 = new double[n];
 
+    // Вычисление начальных условий
     for (int i = 0; i < n; i++) {
         q0[i] = u0(tch[i][0], tch[i][1], 0);
         q1[i] = u0(tch[i][0], tch[i][1], 1);
-        cout << " q0 " << q0[i] << " " << " q1 " << q1[i] << " ";
     }
+
+    // Основной цикл по временным слоям
     for (int hi = 2; hi < n6; hi++) {
         vr = T[hi];
 
-
-        double  dt, dt0, dt1;
-        dt = T[hi] - T[hi - 2];
-        dt0 = T[hi] - T[hi - 1];
-        dt1 = T[hi - 1] - T[hi - 2];
+        double dt = T[hi] - T[hi - 2];
+        double dt0 = T[hi] - T[hi - 1];
+        double dt1 = T[hi - 1] - T[hi - 2];
         tp = (dt + dt0) / (dt * dt0);
         t0 = (dt0) / (dt * dt1);
         t1 = (dt) / (dt1 * dt0);
+
         portret();
         cout << endl;
+
+        // Инициализация массивов
         F = new double[n];
         for (int i = 0; i < n; i++) {
-            di[i] = 0;
-            di3[i] = 0;
-
-            di2[i] = 0;
-            F[i] = 0;
-            x[i] = 0;
+            di[i] = di3[i] = di2[i] = F[i] = x[i] = 0;
         }
 
+        // Инициализация матриц
         ggu = new double[ig[n] - 1];
         ggl = new double[ig[n] - 1];
         ggu2 = new double[ig[n] - 1];
@@ -709,33 +703,33 @@ int main() {
         ggu3 = new double[ig[n] - 1];
         ggl3 = new double[ig[n] - 1];
         for (int i = 0; i < ig[n]; i++) {
-            ggu3[i] = 0;
-            ggl3[i] = 0;
-            ggu2[i] = 0;
-            ggl2[i] = 0;
-            ggu[i] = 0;
-            ggl[i] = 0;
+            ggu3[i] = ggl3[i] = ggu2[i] = ggl2[i] = ggu[i] = ggl[i] = 0;
         }
 
         global_matrix();
         LOC();
+
+        // Сохранение решения
         for (int i = 0; i < n; i++)
             x22[i] = x[i];
 
         tochnoe();
 
+        // Запись результатов
         file11 << vr << endl;
         for (int i = 0; i < n; i++)
             file11 << setprecision(20) << x[i] << "	" << x22[i] << " " << x[i] - x22[i] << endl;
+        // Вычисление погрешностей для последнего слоя
+
+                // Обновление значений для следующего шага
         for (int i = 0; i < n; i++) {
             q0[i] = q1[i];
             q1[i] = x22[i];
         }
-        for (int i = 0; i < n + 1; i++)
-            cout << ig[i] << " ";
-        cout << endl;
-        for (int i = 0; i < ig[n]; i++)
-            cout << jg[i] << " ";
+
     }
+
     file11.close();
+    error_log.close();
+    return 0;
 }
