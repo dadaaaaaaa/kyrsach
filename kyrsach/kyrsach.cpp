@@ -21,6 +21,8 @@ int* ig = NULL;
 int* jg = NULL;
 double* x = NULL;
 double* x22 = NULL;
+ double* x_direct = NULL;
+
 double* di3 = NULL;
 double* ggl3 = NULL;
 double* ggu3 = NULL;
@@ -36,9 +38,9 @@ double u0(double x, double y, int k) {//только для q0  и q1
     switch (k)
     {
         //case 0:   return sin(T[0]);// 
-    case 0:   return x * x + y * y + T[0] ;
+    case 0:   return x+y+T[0]*T[0];
         // case 1:   return sin(T[1]); //
-    case 1:   return x * x + y * y + T[1] ;
+    case 1:   return x+y+T[1]*T[1];
     }
     return 0;
 }
@@ -53,11 +55,11 @@ double ooo(double x, double y, int k) {
 void tochnoe()//u
 {
     for (int i = 0; i < n; i++)
-        x[i] = /*sin(vr);*/tch[i][0] * tch[i][0] + tch[i][1] * tch[i][1] + vr;//lkz 1-без время ,2 
+        x[i] = tch[i][0]  + tch[i][1]+vr*vr;//lkz 1-без время ,2 
 }
 double gamma(double x, double y) {//сигма
 
-    return 3;
+    return 5;
 }
 double lambda(double x, double y, int i) {
     //switch (i)
@@ -74,7 +76,7 @@ double func(double x, double y, int i)//f
     case 1:    return -40;
     case 2:    return -4;
     }*/
-    return -8;
+    return 15*vr*vr;
     //return-5;
     //return 6 * vr - 8;
    // return cos(vr);
@@ -82,7 +84,7 @@ double func(double x, double y, int i)//f
 double func_kraev1(double x, double y, int k)
 {
  
-    return /*sin(vr);*/x * x + y * y + vr;
+    return /*sin(vr);*/x+y+vr*vr*vr;
 }
 double func_kraev3(double* x, int k)
 {
@@ -157,6 +159,111 @@ void input() {
 }
 
 
+// Функции для LU-разложения (работают с вашими глобальными переменными)
+void calcLU() {
+    // Используем существующие глобальные массивы
+    double* diL = new double[n]; // Диагональ L
+    double* L = new double[ig[n]]; // Нижний треугольник L
+    double* U = new double[ig[n]]; // Верхний треугольник U
+
+    for (int i = 0; i < n; i++) {
+        double sumDi = 0;
+        int i0 = ig[i];
+        int i1 = ig[i + 1];
+
+        for (int k = i0; k < i1; k++) {
+            double suml = 0, sumu = 0;
+            int j = jg[k] - 1; // Ваш jg использует 1-based индексацию
+            int j0 = ig[j];
+            int j1 = ig[j + 1];
+
+            // Поиск совпадающих элементов в строках i и j
+            for (int ik = i0, kj = j0; ik < i1 && kj < j1; ) {
+                if (jg[ik] > jg[kj])
+                    kj++;
+                else if (jg[ik] < jg[kj])
+                    ik++;
+                else {
+                    suml += L[ik] * U[kj];
+                    sumu += L[kj] * U[ik];
+                    ik++;
+                    kj++;
+                }
+            }
+
+            L[k] = (ggl[k] - suml);
+            U[k] = (ggu[k] - sumu) / diL[j];
+            sumDi += L[k] * U[k];
+        }
+        diL[i] = di[i] - sumDi;
+    }
+
+    // Сохраняем L и U в существующие массивы
+    for (int i = 0; i < ig[n]; i++) {
+        ggl[i] = L[i];
+        ggu[i] = U[i];
+    }
+    for (int i = 0; i < n; i++) {
+        di[i] = diL[i];
+    }
+
+    delete[] diL;
+    delete[] L;
+    delete[] U;
+}
+
+void solveY(double* y) {
+    // Прямая подстановка Ly = F
+    for (int i = 0; i < n; i++) {
+        double sum = 0;
+        int i0 = ig[i];
+        int i1 = ig[i + 1];
+
+        for (int k = i0; k < i1; k++) {
+            int j = jg[k] - 1; // 1-based индексация
+            sum += ggl[k] * y[j];
+        }
+
+        y[i] = (F[i] - sum) / di[i];
+    }
+}
+
+void solveX(double* y, double* x) {
+    // Обратная подстановка Ux = y
+    for (int i = n - 1; i >= 0; i--) {
+        x[i] = y[i];
+        int i0 = ig[i];
+        int i1 = ig[i + 1];
+
+        for (int k = i0; k < i1; k++) {
+            int j = jg[k] - 1; // 1-based индексация
+            y[j] -= x[i] * ggu[k];
+        }
+    }
+}
+
+void solveLU() {
+    // Выделяем память для временных векторов
+    double* y = new double[n];
+
+    // Инициализация
+    for (int i = 0; i < n; i++) {
+        y[i] = 0.0;
+        x_direct[i] = 0.0;
+    }
+
+    // LU-разложение
+    calcLU();
+
+    // Решение системы
+    solveY(y);
+    solveX(y, x_direct);
+
+    // Вывод результатов (можно сравнить с решением ЛОС)
+
+    // Освобождаем память
+    delete[] y;
+}
 int* copyToOneDimensionalArray(int** source, int n, int& newSize) {
     int* destination = new int[newSize];
     newSize = 0;
@@ -535,7 +642,6 @@ void global_matrix() {
     for (i = 0; i < n; i++)
         di[i] += di3[i];
 
-
     for (i = 0; i < n3 * 2; i = i + 4) {
         pervoe_kraevoe(k1[i] - 1, k1[i + 2] - 1, k1[i + 1], k1[i + 3]);
     }
@@ -609,11 +715,13 @@ double sk_pr(double* a, double* b)//скалярное произведение 
 
 void LOC()
 {
-    double nvzk, alfa, beta, skp, eps = 9.999999682655226e-030;
+    double nvzk, alfa, beta, skp, eps = 9.999999682655226e-014;
     int i;
 
     double lastnvzk;
-
+    for (int i = 0; i < n; i++) {
+        f[i]= 0;
+    }
     Mult_A_Vect(x);
 
     for (i = 0; i < n; i++)
@@ -629,13 +737,31 @@ void LOC()
     for (int k = 1; k < 10000 && nvzk > eps; k++)
     {
         lastnvzk = nvzk;
+        if (k % 10 == 0) {
+            for (int i = 0; i < n; i++) {
+                f[i] = 0;
+            }
+            Mult_A_Vect(x);
+
+            for (i = 0; i < n; i++)
+                z[i] = r[i] = F[i] - f[i];
+
+            Mult_A_Vect(z);
+
+            for (i = 0; i < n; i++)
+                p[i] = f[i];
+
+            nvzk = sqrt(sk_pr(r, r)) / sqrt(sk_pr(F, F));
+        }
         skp = sk_pr(p, p);
         alfa = sk_pr(p, r) / skp;
         for (i = 0; i < n; i++) {
             x[i] += alfa * z[i];
             r[i] -= alfa * p[i];
         }
-
+        for (int i = 0; i < n; i++) {
+            f[i] = 0;
+        }
         Mult_A_Vect(r);
         beta = -sk_pr(p, f) / skp;
         for (i = 0; i < n; i++) {
@@ -668,7 +794,7 @@ int main() {
     dt0v = new double[n];
     tr = new double[n];
     x22 = new double[n];
-
+    x_direct = new double[n];
     // Вычисление начальных условий
     for (int i = 0; i < n; i++) {
         q0[i] = u0(tch[i][0], tch[i][1], 0);
@@ -692,7 +818,7 @@ int main() {
         // Инициализация массивов
         F = new double[n];
         for (int i = 0; i < n; i++) {
-            di[i] = di3[i] = di2[i] = F[i] = x[i] = 0;
+           f[i]= di[i] = di3[i] = di2[i] = F[i] = x[i] =x22[i] = 0;
         }
 
         // Инициализация матриц
@@ -718,7 +844,7 @@ int main() {
         // Запись результатов
         file11 << vr << endl;
         for (int i = 0; i < n; i++)
-            file11 << setprecision(20) << x[i] << "	" << x22[i] << " " << x[i] - x22[i] << endl;
+            file11 << setprecision(20) << x[i] << "\t" << x22[i] << "\t" << x[i] - x22[i] << endl;
         // Вычисление погрешностей для последнего слоя
 
                 // Обновление значений для следующего шага
